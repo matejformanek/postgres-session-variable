@@ -673,7 +673,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
  * DOT_DOT is unused in the core SQL grammar, and so will always provoke
  * parse errors.  It is needed by PL/pgSQL.
  */
-%token <str>	IDENT UIDENT FCONST SCONST USCONST BCONST XCONST Op
+%token <str>	IDENT UIDENT FCONST SCONST USCONST BCONST XCONST Op SESSION_VAR_NAME
 %token <ival>	ICONST PARAM
 %token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER
 %token			LESS_EQUALS GREATER_EQUALS NOT_EQUALS
