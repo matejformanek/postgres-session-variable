@@ -436,6 +436,7 @@ integer_junk	{decinteger}{identifier}
 numeric_junk	{numeric}{identifier}
 real_junk		{real}{identifier}
 param_junk		\${decdigit}+{identifier}
+session_var     @{identifier}
 
 other			.
 
@@ -453,6 +454,11 @@ other			.
  */
 
 %%
+
+{session_var}   {
+                    yylval->str = pstrdup(yytext);
+                    return SESSION_VAR_NAME;
+                }
 
 {whitespace}	{
 					/* ignore */
