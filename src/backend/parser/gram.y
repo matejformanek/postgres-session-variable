@@ -292,7 +292,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateFunctionStmt AlterFunctionStmt ReindexStmt RemoveAggrStmt
 		RemoveFuncStmt RemoveOperStmt RenameStmt ReturnStmt RevokeStmt RevokeRoleStmt
 		RuleActionStmt RuleActionStmtOrEmpty RuleStmt
-		SecLabelStmt SelectStmt TransactionStmt TransactionStmtLegacy TruncateStmt
+		SecLabelStmt SelectStmt SessionVariableStmt TransactionStmt TransactionStmtLegacy TruncateStmt
 		UnlistenStmt UpdateStmt VacuumStmt
 		VariableResetStmt VariableSetStmt VariableShowStmt
 		ViewStmt CheckPointStmt CreateConversionStmt
@@ -437,9 +437,9 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 				transform_element_list transform_type_list
 				TriggerTransitions TriggerReferencing
 				vacuum_relation_list opt_vacuum_relation_list
-				drop_option_list pub_obj_list
+				drop_option_list pub_obj_list session_variable_list
 
-%type <node>	opt_routine_body
+%type <node>	opt_routine_body sessionVariableDef
 %type <groupclause> group_clause
 %type <list>	group_by_list
 %type <node>	group_by_item empty_grouping_set rollup_clause cube_clause
@@ -1093,6 +1093,7 @@ stmt:
 			| RuleStmt
 			| SecLabelStmt
 			| SelectStmt
+			| SessionVariableStmt
 			| TransactionStmt
 			| TruncateStmt
 			| UnlistenStmt
@@ -2025,6 +2026,41 @@ CheckPointStmt:
 				}
 		;
 
+/*****************************************************************************
+ *
+ * SET @variable_name := expr [, @variable_name := expr ]
+ *
+ *****************************************************************************/
+
+SessionVariableStmt:
+            SET session_variable_list
+                {
+                    SessionVariableStmt *n = makeNode(SessionVariableStmt);
+                    n->variables = $2;
+                    $$ = (Node *) n;
+                }
+        ;
+
+session_variable_list:
+            sessionVariableDef
+                {
+                    $$ = list_make1($1);
+                }
+            | session_variable_list ',' sessionVariableDef
+                {
+                    $$ = lappend($1, $3);
+                }
+        ;
+
+sessionVariableDef:
+            SESSION_VAR_NAME COLON_EQUALS a_expr
+                {
+                    sessionVariableDef *n = makeNode(sessionVariableDef);
+                    n->name = $1;
+                    n->expr = $3;
+                    $$ = (Node *) n;
+                }
+        ;
 
 /*****************************************************************************
  *
