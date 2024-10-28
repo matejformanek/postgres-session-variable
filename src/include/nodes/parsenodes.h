@@ -2660,6 +2660,24 @@ typedef struct VariableShowStmt
 } VariableShowStmt;
 
 /* ----------------------
+ * SET session variable
+ * ----------------------
+ */
+
+typedef struct sessionVariableDef
+{
+    NodeTag		type;
+    char	   *name;
+    Node       *expr;
+} SessionVariableDef;
+
+typedef struct SessionVariableStmt
+{
+    NodeTag		type;
+    List	   *variables; /* List of sessionVariableDef */
+} SessionVariableStmt;
+
+/* ----------------------
  *		Create Table Statement
  *
  * NOTE: in the raw gram.y output, ColumnDef and Constraint nodes are
