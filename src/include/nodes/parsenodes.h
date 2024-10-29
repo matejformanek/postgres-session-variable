@@ -2669,7 +2669,7 @@ typedef struct sessionVariableDef
     NodeTag		type;
     char	   *name;
     Node       *expr;
-} SessionVariableDef;
+} sessionVariableDef;
 
 typedef struct SessionVariableStmt
 {
