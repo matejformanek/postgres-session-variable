@@ -512,7 +512,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <node>	def_arg columnElem where_clause where_or_current_clause
 				a_expr b_expr c_expr AexprConst indirection_el opt_slice_bound
 				columnref in_expr having_clause func_table xmltable array_expr
-				OptWhereClause operator_def_arg
+				OptWhereClause operator_def_arg session_var_name_ref
 %type <list>	opt_column_and_period_list
 %type <list>	rowsfrom_item rowsfrom_list opt_col_def_list
 %type <boolean> opt_ordinality opt_without_overlaps
@@ -2059,6 +2059,13 @@ sessionVariableDef:
                     n->name = $1;
                     n->expr = $3;
                     $$ = (Node *) n;
+                }
+        ;
+
+session_var_name_ref:
+            SESSION_VAR_NAME
+                {
+                    $$ = makeColumnRef($1, NIL, @1, yyscanner);
                 }
         ;
 
@@ -15415,6 +15422,7 @@ b_expr:		c_expr
  * ambiguity to the b_expr syntax.
  */
 c_expr:		columnref								{ $$ = $1; }
+            | session_var_name_ref                  { $$ = $1; }
 			| AexprConst							{ $$ = $1; }
 			| PARAM opt_indirection
 				{
