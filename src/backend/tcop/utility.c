@@ -48,6 +48,7 @@
 #include "commands/schemacmds.h"
 #include "commands/seclabel.h"
 #include "commands/sequence.h"
+#include "commands/sessionvariable.h"
 #include "commands/subscriptioncmds.h"
 #include "commands/tablecmds.h"
 #include "commands/tablespace.h"
@@ -254,7 +255,10 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 				 */
 				return COMMAND_IS_STRICTLY_READ_ONLY;
 			}
-
+        case T_SessionVariableStmt:
+        {
+            return COMMAND_IS_STRICTLY_READ_ONLY;
+        }
 		case T_ClosePortalStmt:
 		case T_ConstraintsSetStmt:
 		case T_DeallocateStmt:
@@ -689,6 +693,10 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 			PerformCursorOpen(pstate, (DeclareCursorStmt *) parsetree, params,
 							  isTopLevel);
 			break;
+
+        case T_SessionVariableStmt:
+            SetSessionVariable((SessionVariableStmt *) parsetree);
+            break;
 
 		case T_ClosePortalStmt:
 			{
@@ -2392,6 +2400,10 @@ CreateCommandTag(Node *parsetree)
 			tag = CMDTAG_SELECT;
 			break;
 
+        case T_SessionVariableStmt:
+            tag = CMDTAG_SET;
+            break;
+
 			/* utility statements --- same whether raw or cooked */
 		case T_TransactionStmt:
 			{
@@ -3268,6 +3280,10 @@ GetCommandLogLevel(Node *parsetree)
 			else
 				lev = LOGSTMT_ALL;
 			break;
+
+        case T_SessionVariableStmt:
+            lev = LOGSTMT_ALL;
+            break;
 
 		case T_PLAssignStmt:
 			lev = LOGSTMT_ALL;
