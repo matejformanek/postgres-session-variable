@@ -27,6 +27,8 @@ typedef struct Session
 	dsm_segment *segment;		/* The session-scoped DSM segment. */
 	dsa_area   *area;			/* The session-scoped DSA area. */
 
+    dshash_table *variables;
+
 	/* State managed by typcache.c. */
 	struct SharedRecordTypmodRegistry *shared_typmod_registry;
 	dshash_table *shared_record_table;
