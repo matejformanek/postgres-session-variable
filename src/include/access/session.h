@@ -13,6 +13,7 @@
 #define SESSION_H
 
 #include "lib/dshash.h"
+#include "utils/hsearch.h"
 
 /* Avoid including typcache.h */
 struct SharedRecordTypmodRegistry;
@@ -27,7 +28,7 @@ typedef struct Session
 	dsm_segment *segment;		/* The session-scoped DSM segment. */
 	dsa_area   *area;			/* The session-scoped DSA area. */
 
-    dshash_table *variables;
+    HTAB *variables;
 
 	/* State managed by typcache.c. */
 	struct SharedRecordTypmodRegistry *shared_typmod_registry;

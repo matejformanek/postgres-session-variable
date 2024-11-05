@@ -16,6 +16,15 @@
 
 #include "nodes/parsenodes.h"
 
+#define VARIABLE_SIZE (NAMEDATALEN + 1)
+
+typedef struct sessionVariable {
+    char        key[VARIABLE_SIZE];
+    Node       *expr;
+} sessionVariable;
+
+extern void SaveVariable(SessionVariableStmt *stmt);
+
 extern void SetSessionVariable(SessionVariableStmt *stmt);
 
 #endif //PGSQL_SESSIONVARIABLE_H
