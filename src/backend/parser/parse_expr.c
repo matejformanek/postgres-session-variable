@@ -15,6 +15,7 @@
 
 #include "postgres.h"
 
+#include "access/session.h"
 #include "catalog/pg_aggregate.h"
 #include "catalog/pg_type.h"
 #include "commands/dbcommands.h"
@@ -39,6 +40,7 @@
 #include "utils/lsyscache.h"
 #include "utils/timestamp.h"
 #include "utils/xml.h"
+#include "commands/sessionvariable.h"
 
 /* GUC parameters */
 bool		Transform_null_equals = false;
@@ -575,6 +577,7 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 		case EXPR_KIND_COPY_WHERE:
 		case EXPR_KIND_GENERATED_COLUMN:
 		case EXPR_KIND_CYCLE_MARK:
+        case EXPR_KIND_SESSION_VARIABLE:
 			/* okay */
 			break;
 
@@ -637,7 +640,8 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 	{
 		case 1:
 			{
-				Node	   *field1 = (Node *) linitial(cref->fields);
+				sessionVariable *variable;
+                Node	   *field1 = (Node *) linitial(cref->fields);
 
 				colname = strVal(field1);
 
@@ -664,6 +668,13 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 						node = transformWholeRowRef(pstate, nsitem, levels_up,
 													cref->location);
 				}
+
+                /* Session variable */
+                if(node == NULL && CurrentSession != NULL && CurrentSession->variables != NULL){
+                    variable = (sessionVariable *) hash_search(CurrentSession->variables, colname, HASH_FIND, NULL);
+                    node = variable ? variable->expr : NULL;
+                }
+
 				break;
 			}
 		case 2:
@@ -1815,6 +1826,7 @@ transformSubLink(ParseState *pstate, SubLink *sublink)
 		case EXPR_KIND_VALUES:
 		case EXPR_KIND_VALUES_SINGLE:
 		case EXPR_KIND_CYCLE_MARK:
+		case EXPR_KIND_SESSION_VARIABLE:
 			/* okay */
 			break;
 		case EXPR_KIND_CHECK_CONSTRAINT:
@@ -3197,6 +3209,8 @@ ParseExprKindName(ParseExprKind exprKind)
 			return "GENERATED AS";
 		case EXPR_KIND_CYCLE_MARK:
 			return "CYCLE";
+        case EXPR_KIND_SESSION_VARIABLE:
+            return "SET";
 
 			/*
 			 * There is intentionally no default: case here, so that the
