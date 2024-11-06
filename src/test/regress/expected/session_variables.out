@@ -1,0 +1,102 @@
+-- Set variable
+SET @var_int := 53;
+-- Set multiple variables at once of different types
+SET @var_string := 'Text',
+    @var_null := NULL,
+    @var_date := '2024-05-01',
+    @var_array := ARRAY [1,5,3,4];
+-- Selection plus operations with values
+SELECT @var_int,
+       @var_int + 5,
+       @var_null,
+       @var_string,
+       @var_string || ' Concat',
+       @var_date,
+       @var_date::DATE + '1 MONTH'::INTERVAL,
+       @var_array,
+       (@var_array::anyarray)[2];
+ @var_int | ?column? | @var_null | @var_string |  ?column?   | @var_date  |         ?column?         | @var_array | @var_array 
+----------+----------+-----------+-------------+-------------+------------+--------------------------+------------+------------
+       53 |       58 |           | Text        | Text Concat | 2024-05-01 | Sat Jun 01 00:00:00 2024 | {1,5,3,4}  |          5
+(1 row)
+
+-- Check that the variable values stayed the same
+SELECT @var_string,
+       @var_null,
+       @var_date,
+       @var_array;
+ @var_string | @var_null | @var_date  | @var_array 
+-------------+-----------+------------+------------
+ Text        |           | 2024-05-01 | {1,5,3,4}
+(1 row)
+
+-- Self assigning
+SET @var := 5,
+    @var := (@var * @var) + @var - 1;
+SELECT @var;
+ @var 
+------
+   29
+(1 row)
+
+-- Assigning from different variables
+SET @char_int := '5',
+    @created_int := @char_int + 3,
+    @multiple := @char_int * @created_int;
+SELECT @char_int,
+       @created_int,
+       @multiple;
+ @char_int | @created_int | @multiple 
+-----------+--------------+-----------
+ 5         |            8 |        40
+(1 row)
+
+CREATE TABLE test
+(
+    col_int  INTEGER,
+    col_char VARCHAR(32)
+);
+-- DDL
+INSERT INTO test (col_int, col_char)
+VALUES (@char_int, @char_int),
+       (@multiple / @char_int, @var_string || ' Concat'),
+       (6, '5'),
+       (6, '5'),
+       (6, 'Blocker'),
+       (6, 'Blocker'),
+       (6, '5'),
+       (6, '5'),
+       (6, '5');
+-- WHERE clause
+SELECT *
+FROM test
+WHERE col_int = @char_int
+   OR col_int = @created_int;
+ col_int |  col_char   
+---------+-------------
+       5 | 5
+       8 | Text Concat
+(2 rows)
+
+-- FROM & LIMIT clause
+SELECT *
+FROM test t1
+         JOIN test t2 ON t1.col_char = @char_int AND t2.col_int = @char_int + 1
+LIMIT @char_int - 3;
+ col_int | col_char | col_int | col_char 
+---------+----------+---------+----------
+       5 | 5        |       6 | 5
+       5 | 5        |       6 | 5
+(2 rows)
+
+-- Transaction
+SET @var := 1;
+BEGIN;
+SET @var := 2;
+ROLLBACK;
+SELECT @var;
+ @var 
+------
+    2
+(1 row)
+
