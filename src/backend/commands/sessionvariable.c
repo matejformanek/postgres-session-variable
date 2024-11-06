@@ -88,9 +88,6 @@ SaveVariable(SessionVariableStmt *stmt)
 
         transformedExpr = transformExpr(pstate, tle->expr, EXPR_KIND_SESSION_VARIABLE);
 
-        if (found)
-            pfree(result->expr);
-
         result->expr = (Node *) copyObject(transformedExpr);
     }
 
