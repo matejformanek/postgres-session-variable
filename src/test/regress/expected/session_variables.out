@@ -89,6 +89,7 @@ LIMIT @char_int - 3;
        5 | 5        |       6 | 5
 (2 rows)
 
+DROP TABLE test;
 -- Transaction
 SET @var := 1;
 BEGIN;
@@ -100,3 +101,36 @@ SELECT @var;
     2
 (1 row)
 
+SET @pl := 5;
+-- DO block
+DO
+$$
+    DECLARE
+    BEGIN
+        SET @pl := 3;
+        ROLLBACK;
+    END;
+$$ LANGUAGE plpgsql;
+SELECT @pl;
+ @pl 
+-----
+   3
+(1 row)
+
+-- PROCEDURE
+CREATE OR REPLACE PROCEDURE set_session_variables()
+AS
+$$
+DECLARE
+BEGIN
+    SET @pl := 1;
+END;
+$$ LANGUAGE plpgsql;
+CALL set_session_variables();
+SELECT @pl;
+ @pl 
+-----
+   1
+(1 row)
+
+DROP PROCEDURE set_session_variables();

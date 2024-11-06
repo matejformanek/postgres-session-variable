@@ -69,9 +69,41 @@ FROM test t1
          JOIN test t2 ON t1.col_char = @char_int AND t2.col_int = @char_int + 1
 LIMIT @char_int - 3;
 
+DROP TABLE test;
+
 -- Transaction
 SET @var := 1;
 BEGIN;
 SET @var := 2;
 ROLLBACK;
 SELECT @var;
+
+SET @pl := 5;
+
+-- DO block
+DO
+$$
+    DECLARE
+    BEGIN
+        SET @pl := 3;
+        ROLLBACK;
+    END;
+$$ LANGUAGE plpgsql;
+
+SELECT @pl;
+
+-- PROCEDURE
+CREATE OR REPLACE PROCEDURE set_session_variables()
+AS
+$$
+DECLARE
+BEGIN
+    SET @pl := 1;
+END;
+$$ LANGUAGE plpgsql;
+
+CALL set_session_variables();
+
+SELECT @pl;
+
+DROP PROCEDURE set_session_variables();
