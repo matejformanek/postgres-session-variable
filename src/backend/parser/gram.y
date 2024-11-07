@@ -292,7 +292,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateFunctionStmt AlterFunctionStmt ReindexStmt RemoveAggrStmt
 		RemoveFuncStmt RemoveOperStmt RenameStmt ReturnStmt RevokeStmt RevokeRoleStmt
 		RuleActionStmt RuleActionStmtOrEmpty RuleStmt
-		SecLabelStmt SelectStmt SessionVariableStmt TransactionStmt TransactionStmtLegacy TruncateStmt
+		SecLabelStmt SelectStmt SetSessionVariableStmt TransactionStmt TransactionStmtLegacy TruncateStmt
 		UnlistenStmt UpdateStmt VacuumStmt
 		VariableResetStmt VariableSetStmt VariableShowStmt
 		ViewStmt CheckPointStmt CreateConversionStmt
@@ -1093,7 +1093,7 @@ stmt:
 			| RuleStmt
 			| SecLabelStmt
 			| SelectStmt
-			| SessionVariableStmt
+			| SetSessionVariableStmt
 			| TransactionStmt
 			| TruncateStmt
 			| UnlistenStmt
@@ -2030,12 +2030,18 @@ CheckPointStmt:
  *
  * SET @variable_name := expr [, @variable_name := expr ]
  *
+ * SET multiple user-defined session variables.
+ *
+ * Note: thanks to using SESSION_VAR_NAME we could even use '=' 
+ * without conflicts but only COLON_EQUALS makes it cleaner.
+ * Also there is a lot of similarities between session variable and
+ * table column like Def and Ref non-terminals or expr parsing.
  *****************************************************************************/
 
-SessionVariableStmt:
+SetSessionVariableStmt:
             SET session_variable_list
                 {
-                    SessionVariableStmt *n = makeNode(SessionVariableStmt);
+                    SetSessionVariableStmt *n = makeNode(SetSessionVariableStmt);
                     n->variables = $2;
                     $$ = (Node *) n;
                 }
@@ -2062,6 +2068,10 @@ sessionVariableDef:
                 }
         ;
 
+/**
+ * Equivalent of columnRef for variables -> session variable
+ * is a "special column" in the parser life cycle.  
+ */
 session_var_name_ref:
             SESSION_VAR_NAME
                 {

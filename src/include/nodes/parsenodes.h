@@ -2661,6 +2661,12 @@ typedef struct VariableShowStmt
 
 /* ----------------------
  * SET session variable
+ * 
+ * SET @varname := expr [, var_name := expr ] ...
+ * Allows us to set multiple user-defined session variables.
+ * 
+ * Note: the "name" always has to be a string token SESSION_VAR_NAME ->
+ * @ prefixed IDENT. 
  * ----------------------
  */
 
@@ -2671,11 +2677,11 @@ typedef struct sessionVariableDef
     Node       *expr;
 } sessionVariableDef;
 
-typedef struct SessionVariableStmt
+typedef struct SetSessionVariableStmt
 {
     NodeTag		type;
     List	   *variables; /* List of sessionVariableDef */
-} SessionVariableStmt;
+} SetSessionVariableStmt;
 
 /* ----------------------
  *		Create Table Statement
