@@ -69,6 +69,8 @@ static Query *transformValuesClause(ParseState *pstate, SelectStmt *stmt);
 static Query *transformSetOperationStmt(ParseState *pstate, SelectStmt *stmt);
 static Node *transformSetOperationTree(ParseState *pstate, SelectStmt *stmt,
 									   bool isTopLevel, List **targetlist);
+static Query *
+transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt);
 static void determineRecursiveColTypes(ParseState *pstate,
 									   Node *larg, List *nrtargetlist);
 static Query *transformReturnStmt(ParseState *pstate, ReturnStmt *stmt);
@@ -410,6 +412,7 @@ transformStmt(ParseState *pstate, Node *parseTree)
 		switch (nodeTag(parseTree))
 		{
 			case T_SelectStmt:
+			case T_SetSessionVariableStmt:
 			case T_InsertStmt:
 			case T_UpdateStmt:
 			case T_DeleteStmt:
@@ -473,6 +476,10 @@ transformStmt(ParseState *pstate, Node *parseTree)
 			/*
 			 * Special cases
 			 */
+        case T_SetSessionVariableStmt:
+            result = transformSetSessionVariableStmt(pstate, (SetSessionVariableStmt *) parseTree);
+            break;
+            
 		case T_DeclareCursorStmt:
 			result = transformDeclareCursorStmt(pstate,
 												(DeclareCursorStmt *) parseTree);
@@ -552,6 +559,7 @@ stmt_requires_parse_analysis(RawStmt *parseTree)
 			 * Special cases
 			 */
 		case T_DeclareCursorStmt:
+		case T_SetSessionVariableStmt:
 		case T_ExplainStmt:
 		case T_CreateTableAsStmt:
 		case T_CallStmt:
@@ -2945,6 +2953,39 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 	return qry;
 }
 
+/*
+ * transformSetSessionVariableStmt -
+ *	transform a SET @variable := expr Statement
+ *
+ * SET SESSION VARIABLE is like other utility statements in that we emit it as a
+ * CMD_UTILITY Query node; however, we must first transform the contained
+ * query.
+ */
+static Query *
+transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt) {
+    Query	   *result;
+    ListCell *tl;
+
+    foreach(tl, stmt->variables)
+    {
+        Query	   *query;
+        sessionVariableDef *tle = (sessionVariableDef *) lfirst(tl);
+        
+        query = transformStmt(pstate, tle->query);
+
+        /* the grammar should have produced a SELECT */
+        Assert(IsA(query, Query) && query->commandType == CMD_SELECT);
+        
+        tle->query = (Node *) query;
+    }
+    
+
+    result = makeNode(Query);
+    result->commandType = CMD_UTILITY;
+    result->utilityStmt = (Node *) stmt;
+
+    return result;
+}
 
 /*
  * transformDeclareCursorStmt -
