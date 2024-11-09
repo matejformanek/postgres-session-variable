@@ -2674,7 +2674,7 @@ typedef struct sessionVariableDef
 {
     NodeTag		type;
     char	   *name;
-    Node       *expr;
+    Node	   *query;
 } sessionVariableDef;
 
 typedef struct SetSessionVariableStmt

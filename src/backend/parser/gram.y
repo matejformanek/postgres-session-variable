@@ -2062,8 +2062,20 @@ sessionVariableDef:
             SESSION_VAR_NAME COLON_EQUALS a_expr
                 {
                     sessionVariableDef *n = makeNode(sessionVariableDef);
+                    SelectStmt *select;
+                    ResTarget  *res;
+                    select = makeNode(SelectStmt);
+                    res = makeNode(ResTarget);
+                    
+                    /* Transform expr -> SELECT expr so that we can analyze */
+                    res->name = $1;
+                    res->indirection = NIL;
+                    res->val = (Node *) $3;
+                    res->location = @3;
+                    select->targetList = list_make1(res);
+                    
                     n->name = $1;
-                    n->expr = $3;
+                    n->query = (Node *) select;
                     $$ = (Node *) n;
                 }
         ;
