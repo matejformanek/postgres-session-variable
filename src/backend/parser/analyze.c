@@ -2969,10 +2969,26 @@ transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt
     foreach(tl, stmt->variables)
     {
         Query	   *query;
+        TargetEntry *first_tle;
         sessionVariableDef *tle = (sessionVariableDef *) lfirst(tl);
-        
         query = transformStmt(pstate, tle->query);
 
+        if (query->targetList != NIL)
+        {
+            first_tle = (TargetEntry *) linitial(query->targetList);
+
+            /* Change the resno to 1 because we have multiple DIFFERENT queries
+             * Each iteration we are creating a self standing query - of SELECT 
+             * That should be returning 1 column and 1 row.
+             * 
+             * Because each query is self standing but we parse it as one the
+             * resno is by default increasing for each query that would cause ERROR
+             * in apply_tlist_labeling, because we would not be able to match dest and src
+             * */
+            first_tle->resno = 1;
+        }
+        
+        
         /* the grammar should have produced a SELECT */
         Assert(IsA(query, Query) && query->commandType == CMD_SELECT);
         

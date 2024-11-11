@@ -48,6 +48,7 @@
 #include "commands/schemacmds.h"
 #include "commands/seclabel.h"
 #include "commands/sequence.h"
+#include "commands/sessionvariable.h"
 #include "commands/subscriptioncmds.h"
 #include "commands/tablecmds.h"
 #include "commands/tablespace.h"
@@ -692,7 +693,7 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 			break;
 
         case T_SetSessionVariableStmt:
-            elog(ERROR, "got here");
+            ExecuteSessionVariable(pstate,(SetSessionVariableStmt *) parsetree, params, queryEnv);
             break;
             
 		case T_ClosePortalStmt:
