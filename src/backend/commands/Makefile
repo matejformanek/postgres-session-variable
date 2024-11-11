@@ -52,6 +52,7 @@ OBJS = \
 	sequence.o \
 	statscmds.o \
 	subscriptioncmds.o \
+	sessionvariable.o \
 	tablecmds.o \
 	tablespace.o \
 	trigger.o \
