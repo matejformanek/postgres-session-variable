@@ -23,8 +23,7 @@
 
 typedef struct sessionVariable {
     char key[VARIABLE_SIZE];
-    Datum expr;
-    Oid typid;
+    Node *expr;
 } sessionVariable;
 
 typedef struct {
@@ -37,7 +36,7 @@ typedef struct {
 
 extern DestReceiver *CreateSessionVariableDestReceiver(sessionVariable *expr);
 
-extern void SaveVariable(sessionVariable *result, Datum value, bool typByVal, int16 typLen, Oid typid);
+extern void SaveVariable(sessionVariable *result, Node *expr);
 
 extern void
 evaluateVariable(sessionVariableDef *variable, sessionVariable *result, ParseState *pstate, ParamListInfo params,

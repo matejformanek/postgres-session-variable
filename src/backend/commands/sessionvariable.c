@@ -53,12 +53,28 @@
 
 void initSessionVariables(void);
 
+static Node *
+makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value) {
+    Const *expr;
+    expr = makeNode(Const);
+
+    expr->consttype = typid;
+    expr->consttypmod = typmod;
+    expr->constcollid = collid;
+    expr->constbyval = typByVal;
+    expr->constlen = typLen;
+    expr->constisnull = isnull;
+    expr->constvalue = value;
+
+    return (Node *) expr;
+}
+
 static void
 sessionVariableStartupReceiver(DestReceiver *self, int operation, TupleDesc typeinfo) {
     sessionVariableReceiver *svReceiver = (sessionVariableReceiver *) self;
     svReceiver->rows = 0;
-    
-    if(typeinfo->natts != 1)
+
+    if (typeinfo->natts != 1)
         ereport(ERROR,
                 (errcode(ERRCODE_TOO_MANY_COLUMNS),
                         errmsg("expression has more than one column")));
@@ -67,18 +83,21 @@ sessionVariableStartupReceiver(DestReceiver *self, int operation, TupleDesc type
 static bool
 sessionVariableReceiveSlot(TupleTableSlot *slot, DestReceiver *self) {
     sessionVariableReceiver *svReceiver = (sessionVariableReceiver *) self;
-    Oid typeOid;
     bool typByVal;
     int16 typLen;
+    Node *expr;
+    int32 typmod = TupleDescAttr(slot->tts_tupleDescriptor, 0)->atttypmod;
+    Oid typeOid = TupleDescAttr(slot->tts_tupleDescriptor, 0)->atttypid;
+    Oid collid = TupleDescAttr(slot->tts_tupleDescriptor, 0)->attcollation;
 
     svReceiver->result = slot_getattr(slot, 1, &svReceiver->isnull);
 
-    typeOid = TupleDescAttr(slot->tts_tupleDescriptor, 0)->atttypid;
-
     get_typlenbyval(typeOid, &typLen, &typByVal);
 
+    expr = makeConstSessionVariable(typeOid, typmod, collid, typByVal, typLen, svReceiver->isnull, svReceiver->result);
+
     /* Store the result directly into the session variable */
-    SaveVariable(svReceiver->expr, svReceiver->result, typByVal, typLen, typeOid);
+    SaveVariable(svReceiver->expr, expr);
 
     /* Count retrieved rows -> only 1 row allowed */
     svReceiver->rows += 1;
@@ -132,15 +151,14 @@ initSessionVariables() {
 }
 
 void
-SaveVariable(sessionVariable *result, Datum value, bool typByVal, int16 typLen, Oid typid) {
+SaveVariable(sessionVariable *result, Node *expr) {
     MemoryContext oldContext;
 
     Assert(result);
 
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
 
-    result->expr = datumCopy(value, typByVal, typLen);
-    result->typid = typid;
+    result->expr = (Node *) copyObject(expr);
 
     MemoryContextSwitchTo(oldContext);
 }
