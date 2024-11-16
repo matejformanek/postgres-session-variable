@@ -200,6 +200,10 @@ AttachSession(dsm_handle handle)
 void
 DetachSession(void)
 {
+    /* Clean session variables */
+    hash_destroy(CurrentSession->variables);
+    CurrentSession->variables = NULL;
+    
 	/* Runs detach hooks. */
 	dsm_detach(CurrentSession->segment);
 	CurrentSession->segment = NULL;
