@@ -89,7 +89,7 @@ preprocess_targetlist(PlannerInfo *root)
 		target_relation = table_open(target_rte->relid, NoLock);
 	}
 	else
-		Assert(command_type == CMD_SELECT);
+		Assert(command_type == CMD_SELECT || command_type == CMD_INSERT);
 
 	/*
 	 * In an INSERT, the executor expects the targetlist to match the exact
@@ -101,7 +101,7 @@ preprocess_targetlist(PlannerInfo *root)
 	 * renumber the processed_tlist entries to be consecutive.
 	 */
 	tlist = parse->targetList;
-	if (command_type == CMD_INSERT)
+	if (command_type == CMD_INSERT && target_relation)
 		tlist = expand_insert_targetlist(tlist, target_relation);
 	else if (command_type == CMD_UPDATE)
 		root->update_colnos = extract_update_targetlist_colnos(tlist);

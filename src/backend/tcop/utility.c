@@ -256,6 +256,7 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 			}
 
 		case T_ClosePortalStmt:
+		case T_SetSessionVariableStmt:
 		case T_ConstraintsSetStmt:
 		case T_DeallocateStmt:
 		case T_DeclareCursorStmt:
@@ -690,6 +691,9 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 							  isTopLevel);
 			break;
 
+        case T_SetSessionVariableStmt:
+            break;
+            
 		case T_ClosePortalStmt:
 			{
 				ClosePortalStmt *stmt = (ClosePortalStmt *) parsetree;
@@ -2391,6 +2395,10 @@ CreateCommandTag(Node *parsetree)
 		case T_PLAssignStmt:
 			tag = CMDTAG_SELECT;
 			break;
+            
+		case T_SetSessionVariableStmt:
+			tag = CMDTAG_SET;
+			break;
 
 			/* utility statements --- same whether raw or cooked */
 		case T_TransactionStmt:
@@ -3270,6 +3278,7 @@ GetCommandLogLevel(Node *parsetree)
 			break;
 
 		case T_PLAssignStmt:
+		case T_SetSessionVariableStmt:
 			lev = LOGSTMT_ALL;
 			break;
 

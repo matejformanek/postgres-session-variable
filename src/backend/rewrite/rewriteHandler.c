@@ -3921,8 +3921,12 @@ RewriteQuery(Query *parsetree, List *rewrite_events, int orig_rt_length)
 	 * SELECT rules are handled later when we have all the queries that should
 	 * get executed.  Also, utilities aren't rewritten at all (do we still
 	 * need that check?)
+	 * 
+	 * SESSION VARIABLE -> does not need any rewriting + it is saved in-memory so we can not reference any table
 	 */
-	if (event != CMD_SELECT && event != CMD_UTILITY)
+    if (parsetree->resultRelation == 0) {
+        PushActiveSnapshot(GetTransactionSnapshot());
+    } else if (event != CMD_SELECT && event != CMD_UTILITY)
 	{
 		int			result_relation;
 		RangeTblEntry *rt_entry;
@@ -3935,7 +3939,6 @@ RewriteQuery(Query *parsetree, List *rewrite_events, int orig_rt_length)
 		bool		defaults_remaining = false;
 
 		result_relation = parsetree->resultRelation;
-		Assert(result_relation != 0);
 		rt_entry = rt_fetch(result_relation, parsetree->rtable);
 		Assert(rt_entry->rtekind == RTE_RELATION);
 

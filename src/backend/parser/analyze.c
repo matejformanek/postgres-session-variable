@@ -53,6 +53,7 @@
 #include "utils/guc.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
+#include "access/session.h"
 
 
 /* Hook for plugins to get control at end of parse analysis */
@@ -67,6 +68,7 @@ static int	count_rowexpr_columns(ParseState *pstate, Node *expr);
 static Query *transformSelectStmt(ParseState *pstate, SelectStmt *stmt);
 static Query *transformValuesClause(ParseState *pstate, SelectStmt *stmt);
 static Query *transformSetOperationStmt(ParseState *pstate, SelectStmt *stmt);
+static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt);
 static Node *transformSetOperationTree(ParseState *pstate, SelectStmt *stmt,
 									   bool isTopLevel, List **targetlist);
 static void determineRecursiveColTypes(ParseState *pstate,
@@ -435,6 +437,10 @@ transformStmt(ParseState *pstate, Node *parseTree)
 		case T_InsertStmt:
 			result = transformInsertStmt(pstate, (InsertStmt *) parseTree);
 			break;
+            
+		case T_SetSessionVariableStmt:
+			result = transformSetSessionVariableStmt(pstate, (SetSessionVariableStmt *) parseTree);
+			break;
 
 		case T_DeleteStmt:
 			result = transformDeleteStmt(pstate, (DeleteStmt *) parseTree);
@@ -661,6 +667,46 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
 		parseCheckAggregates(pstate, qry);
 
 	return qry;
+}
+
+/*
+ * transformSetSessionVariableStmt -
+ *	  transform an SET @var := expr [, @var := expr]
+ *	  Session variables
+ */
+static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt){
+    Query	   *qry = makeNode(Query);
+    ListCell *tl;
+    AttrNumber resno = 1;
+
+    qry->commandType = CMD_INSERT;
+    pstate->p_is_insert = true;
+    
+    qry->targetList = NIL;
+    foreach(tl, stmt->variables)
+    {
+        sessionVariableDef *var = (sessionVariableDef *) lfirst(tl);
+        TargetEntry *tle;
+
+        tle = makeTargetEntry((Expr *) transformExpr(pstate, var->expr, EXPR_KIND_VALUES_SINGLE),
+                              resno++,
+                              var->name,
+                              false);
+        
+        qry->targetList = lappend(qry->targetList, tle);
+    }
+
+    /* done building the range table and jointree */
+    qry->rtable = pstate->p_rtable;
+    qry->rteperminfos = pstate->p_rteperminfos;
+    qry->jointree = makeFromExpr(pstate->p_joinlist, NULL);
+
+    qry->hasTargetSRFs = pstate->p_hasTargetSRFs;
+    qry->hasSubLinks = pstate->p_hasSubLinks;
+
+    assign_query_collations(pstate, qry);
+    
+    return qry;
 }
 
 /*
