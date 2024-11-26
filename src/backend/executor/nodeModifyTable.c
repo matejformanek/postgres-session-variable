@@ -56,6 +56,7 @@
 #include "access/tableam.h"
 #include "access/xact.h"
 #include "commands/trigger.h"
+#include "commands/sessionvariable.h"
 #include "executor/execPartition.h"
 #include "executor/executor.h"
 #include "executor/nodeModifyTable.h"
@@ -67,6 +68,7 @@
 #include "storage/lmgr.h"
 #include "utils/builtins.h"
 #include "utils/datum.h"
+#include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/snapmgr.h"
 
@@ -4836,7 +4838,13 @@ ExecSetSessionVariable(PlanState *pstate)
         for (int i = 0; i < tupleDesc->natts; ++i)
         {
             Form_pg_attribute attr = TupleDescAttr(tupleDesc, i);
-
+            bool typByVal;
+            int16 typLen;
+            Node *expr;
+            int32 typmod = attr->atttypmod;
+            Oid typeOid = attr->atttypid;
+            Oid collid = attr->attcollation;
+            
             /*
              * Thanks to the code inside grammar and analyze we know that each column should have it's assigned varname
              * If not it means user had to try and save more then 1 value inside the variable thus making one column nameless
@@ -4847,7 +4855,12 @@ ExecSetSessionVariable(PlanState *pstate)
             /*
              * Save value inside Session variable HTAB 
              **/
-            // SaveVariable
+            get_typlenbyval(typeOid, &typLen, &typByVal);
+
+            expr = makeConstSessionVariable(typeOid, typmod, collid, typByVal, typLen, slot->tts_isnull[i], slot->tts_values[i]);
+
+            /* Store the result directly into the session variable */
+            SetSessionVariable(NameStr(attr->attname), expr);
         }
     }
 
