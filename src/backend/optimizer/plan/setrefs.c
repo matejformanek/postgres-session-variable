@@ -1052,6 +1052,32 @@ set_plan_refs(PlannerInfo *root, Plan *plan, int rtoffset)
 		case T_ProjectSet:
 			set_upper_references(root, plan, rtoffset);
 			break;
+        case T_ModifySessionVariable:
+            {
+                ModifySessionVariable *splan = (ModifySessionVariable *) plan;
+                Plan	            *subplan = outerPlan(splan);
+
+                Assert(splan->plan.targetlist == NIL);
+                Assert(splan->plan.qual == NIL);
+
+                if (splan->rootRelation)
+                    splan->rootRelation += rtoffset;
+                
+                foreach(l, splan->resultRelations)
+                {
+                    lfirst_int(l) += rtoffset;
+                }
+                
+                root->glob->resultRelations =
+                        list_concat(root->glob->resultRelations,
+                                    splan->resultRelations);
+
+                if (splan->rootRelation)
+                    root->glob->resultRelations =
+                            lappend_int(root->glob->resultRelations,
+                                        splan->rootRelation);
+            }
+            break;
 		case T_ModifyTable:
 			{
 				ModifyTable *splan = (ModifyTable *) plan;

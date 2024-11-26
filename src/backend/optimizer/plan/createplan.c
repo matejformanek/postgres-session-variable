@@ -117,7 +117,7 @@ static SetOp *create_setop_plan(PlannerInfo *root, SetOpPath *best_path,
 static RecursiveUnion *create_recursiveunion_plan(PlannerInfo *root, RecursiveUnionPath *best_path);
 static LockRows *create_lockrows_plan(PlannerInfo *root, LockRowsPath *best_path,
 									  int flags);
-static ModifyTable *create_modifytable_plan(PlannerInfo *root, ModifyTablePath *best_path);
+static Plan *create_modifytable_plan(PlannerInfo *root, ModifyTablePath *best_path);
 static Limit *create_limit_plan(PlannerInfo *root, LimitPath *best_path,
 								int flags);
 static SeqScan *create_seqscan_plan(PlannerInfo *root, Path *best_path,
@@ -317,6 +317,12 @@ static ModifyTable *make_modifytable(PlannerInfo *root, Plan *subplan,
 									 List *rowMarks, OnConflictExpr *onconflict,
 									 List *mergeActionLists, List *mergeJoinConditions,
 									 int epqParam);
+static ModifySessionVariable *make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
+                                                         CmdType operation,
+                                                         Index rootRelation,
+                                                         List *resultRelations,
+                                                         List *updateColnosLists,
+                                                         int epqParam);
 static GatherMerge *create_gather_merge_plan(PlannerInfo *root,
 											 GatherMergePath *best_path);
 
@@ -358,7 +364,7 @@ create_plan(PlannerInfo *root, Path *best_path)
 	 * top-level tlist seen at execution time.  However, ModifyTable plan
 	 * nodes don't have a tlist matching the querytree targetlist.
 	 */
-	if (!IsA(plan, ModifyTable))
+	if (!IsA(plan, ModifyTable) && !IsA(plan, ModifySessionVariable))
 		apply_tlist_labeling(plan->targetlist, root->processed_tlist);
 
 	/*
@@ -2810,7 +2816,7 @@ create_lockrows_plan(PlannerInfo *root, LockRowsPath *best_path,
  *
  *	  Returns a Plan node.
  */
-static ModifyTable *
+static Plan *
 create_modifytable_plan(PlannerInfo *root, ModifyTablePath *best_path)
 {
 	ModifyTable *plan;
@@ -2823,22 +2829,31 @@ create_modifytable_plan(PlannerInfo *root, ModifyTablePath *best_path)
 	/* Transfer resname/resjunk labeling, too, to keep executor happy */
 	apply_tlist_labeling(subplan->targetlist, root->processed_tlist);
 
-	plan = make_modifytable(root,
-							subplan,
-							best_path->operation,
-							best_path->canSetTag,
-							best_path->nominalRelation,
-							best_path->rootRelation,
-							best_path->partColsUpdated,
-							best_path->resultRelations,
-							best_path->updateColnosLists,
-							best_path->withCheckOptionLists,
-							best_path->returningLists,
-							best_path->rowMarks,
-							best_path->onconflict,
-							best_path->mergeActionLists,
-							best_path->mergeJoinConditions,
-							best_path->epqParam);
+    if(best_path->operation == CMD_SET_SESSION_VARIABLE)
+        plan = (Plan *) make_modifysessionvariable(root,
+                                         subplan,
+                                         best_path->operation,
+                                         best_path->rootRelation,
+                                         best_path->resultRelations,
+                                         best_path->updateColnosLists,
+                                         best_path->epqParam);
+    else
+        plan = (Plan *) make_modifytable(root,
+                                         subplan,
+                                         best_path->operation,
+                                         best_path->canSetTag,
+                                         best_path->nominalRelation,
+                                         best_path->rootRelation,
+                                         best_path->partColsUpdated,
+                                         best_path->resultRelations,
+                                         best_path->updateColnosLists,
+                                         best_path->withCheckOptionLists,
+                                         best_path->returningLists,
+                                         best_path->rowMarks,
+                                         best_path->onconflict,
+                                         best_path->mergeActionLists,
+                                         best_path->mergeJoinConditions,
+                                         best_path->epqParam);
 
 	copy_generic_path_info(&plan->plan, &best_path->path);
 
@@ -7095,6 +7110,30 @@ make_project_set(List *tlist,
 	plan->righttree = NULL;
 
 	return node;
+}
+
+static ModifySessionVariable *
+make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
+                           CmdType operation,
+                           Index rootRelation,
+                           List *resultRelations,
+                           List *updateColnosLists,
+                           int epqParam)
+{
+    ModifySessionVariable *node = makeNode(ModifySessionVariable);
+    node->plan.lefttree = subplan;
+    node->plan.righttree = NULL;
+    node->plan.qual = NIL;
+    /* setrefs.c will fill in the targetlist, if needed */
+    node->plan.targetlist = NIL;
+    
+    node->operation = operation;
+    node->rootRelation = rootRelation;
+    node->resultRelations = resultRelations;
+    node->updateColnosLists = updateColnosLists;
+    node->epqParam = epqParam;
+    
+    return node;
 }
 
 /*

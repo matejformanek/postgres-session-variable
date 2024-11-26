@@ -596,7 +596,10 @@ ExecEndNode(PlanState *node)
 		case T_ModifyTableState:
 			ExecEndModifyTable((ModifyTableState *) node);
 			break;
-
+            
+        case T_SetSessionVariableStmt:
+            break;
+            
 		case T_AppendState:
 			ExecEndAppend((AppendState *) node);
 			break;

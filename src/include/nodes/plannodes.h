@@ -256,6 +256,16 @@ typedef struct ModifyTable
 										 * for MERGE */
 } ModifyTable;
 
+typedef struct ModifySessionVariable
+{
+    Plan		plan;
+    CmdType		operation;		/* SET_SESSION_VARIABLE */
+    Index		rootRelation;	/* Root RT index, if partitioned/inherited */
+    List	   *resultRelations;	/* integer list of RT indexes */
+    List	   *updateColnosLists;	/* per-target-table update_colnos lists */
+    int			epqParam;		/* ID of Param for EvalPlanQual re-eval */
+} ModifySessionVariable;
+
 struct PartitionPruneInfo;		/* forward reference to struct below */
 
 /* ----------------

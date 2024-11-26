@@ -2610,7 +2610,20 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 				}
 			}
 			break;
+        
+        case T_ModifySessionVariable:
+            {
+                ModifySessionVariable *msvplan = (ModifySessionVariable *) plan;
 
+                /* Force descendant scan nodes to reference epqParam */
+                locally_added_param = msvplan->epqParam;
+                valid_params = bms_add_member(bms_copy(valid_params),
+                                              locally_added_param);
+                scan_params = bms_add_member(bms_copy(scan_params),
+                                             locally_added_param);
+            }
+            break;
+        
 		case T_ModifyTable:
 			{
 				ModifyTable *mtplan = (ModifyTable *) plan;
