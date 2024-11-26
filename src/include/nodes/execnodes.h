@@ -1358,6 +1358,16 @@ typedef struct ProjectSetState
 #define MERGE_DELETE	0x04
 
 /* ----------------
+ *	 ModifySessionVariableState information
+ * ----------------
+ */
+typedef struct ModifySessionVariableState
+{
+    PlanState	ps;				/* its first field is NodeTag */
+    bool		mt_done;		/* are we done? */
+} ModifySessionVariableState;
+
+/* ----------------
  *	 ModifyTableState information
  * ----------------
  */

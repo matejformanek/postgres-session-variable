@@ -318,11 +318,7 @@ static ModifyTable *make_modifytable(PlannerInfo *root, Plan *subplan,
 									 List *mergeActionLists, List *mergeJoinConditions,
 									 int epqParam);
 static ModifySessionVariable *make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
-                                                         CmdType operation,
-                                                         Index rootRelation,
-                                                         List *resultRelations,
-                                                         List *updateColnosLists,
-                                                         int epqParam);
+                                                         CmdType operation);
 static GatherMerge *create_gather_merge_plan(PlannerInfo *root,
 											 GatherMergePath *best_path);
 
@@ -2831,12 +2827,8 @@ create_modifytable_plan(PlannerInfo *root, ModifyTablePath *best_path)
 
     if(best_path->operation == CMD_SET_SESSION_VARIABLE)
         plan = (Plan *) make_modifysessionvariable(root,
-                                         subplan,
-                                         best_path->operation,
-                                         best_path->rootRelation,
-                                         best_path->resultRelations,
-                                         best_path->updateColnosLists,
-                                         best_path->epqParam);
+                                                   subplan,
+                                                   best_path->operation);
     else
         plan = (Plan *) make_modifytable(root,
                                          subplan,
@@ -7114,11 +7106,7 @@ make_project_set(List *tlist,
 
 static ModifySessionVariable *
 make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
-                           CmdType operation,
-                           Index rootRelation,
-                           List *resultRelations,
-                           List *updateColnosLists,
-                           int epqParam)
+                           CmdType operation)
 {
     ModifySessionVariable *node = makeNode(ModifySessionVariable);
     node->plan.lefttree = subplan;
@@ -7128,10 +7116,6 @@ make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
     node->plan.targetlist = NIL;
     
     node->operation = operation;
-    node->rootRelation = rootRelation;
-    node->resultRelations = resultRelations;
-    node->updateColnosLists = updateColnosLists;
-    node->epqParam = epqParam;
     
     return node;
 }

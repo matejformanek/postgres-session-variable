@@ -178,6 +178,11 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 													   estate, eflags);
 			break;
 
+        case T_ModifySessionVariable:
+            result = (PlanState *) ExecInitSetSessionVariable((ModifySessionVariable *) node,
+                                                       estate, eflags);
+            break;
+
 		case T_Append:
 			result = (PlanState *) ExecInitAppend((Append *) node,
 												  estate, eflags);
@@ -597,7 +602,8 @@ ExecEndNode(PlanState *node)
 			ExecEndModifyTable((ModifyTableState *) node);
 			break;
             
-        case T_SetSessionVariableStmt:
+        case T_ModifySessionVariableState:
+            ExecEndSetSessionVariable((ModifySessionVariableState *) node);
             break;
             
 		case T_AppendState:
