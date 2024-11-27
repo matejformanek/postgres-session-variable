@@ -456,6 +456,8 @@ other			.
 %%
 
 {session_var}   {
+					SET_YYLLOC();
+
                     yylval->str = pstrdup(yytext);
                     return SESSION_VAR_NAME;
                 }
