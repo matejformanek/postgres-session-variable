@@ -4248,6 +4248,7 @@ exec_stmt_execsql(PLpgSQL_execstate *estate,
 			 */
 			if (plansource->commandTag == CMDTAG_INSERT ||
 				plansource->commandTag == CMDTAG_UPDATE ||
+				plansource->commandTag == CMD_SET_SESSION_VARIABLE ||
 				plansource->commandTag == CMDTAG_DELETE ||
 				plansource->commandTag == CMDTAG_MERGE)
 			{
@@ -4307,6 +4308,7 @@ exec_stmt_execsql(PLpgSQL_execstate *estate,
 		case SPI_OK_UPDATE:
 		case SPI_OK_DELETE:
 		case SPI_OK_MERGE:
+        case SPI_OK_SET_SESSION_VARIABLE:
 		case SPI_OK_INSERT_RETURNING:
 		case SPI_OK_UPDATE_RETURNING:
 		case SPI_OK_DELETE_RETURNING:
