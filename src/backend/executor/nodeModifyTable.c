@@ -4802,7 +4802,7 @@ ExecSetSessionVariable(PlanState *pstate)
 	 * Fetch rows from subplan, and execute the required table modification
 	 * for each row.
 	 */
-    for (int i = 0;;++i)
+    for (int j = 0;;++j)
     {
         TupleDesc tupleDesc;
         
@@ -4828,7 +4828,7 @@ ExecSetSessionVariable(PlanState *pstate)
         /* No more tuples to process? */
         if (TupIsNull(context.planSlot))
             break;
-        else if(!TupIsNull(context.planSlot) && i != 0)
+        else if(!TupIsNull(context.planSlot) && j != 0)
             elog(ERROR, "Can not assign more than 1 row into variable");
         
         slot = context.planSlot;
@@ -4908,8 +4908,6 @@ ModifySessionVariableState *ExecInitSetSessionVariable(ModifySessionVariable *no
  * ----------------------------------------------------------------
  */
 void ExecEndSetSessionVariable(ModifySessionVariableState *node){
-    if (ActiveSnapshotSet())
-        PopActiveSnapshot();
     /*
      * shut down subplan
      */

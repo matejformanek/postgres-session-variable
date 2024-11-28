@@ -549,6 +549,7 @@ stmt_requires_parse_analysis(RawStmt *parseTree)
 		case T_UpdateStmt:
 		case T_MergeStmt:
 		case T_SelectStmt:
+        case T_SetSessionVariableStmt:
 		case T_ReturnStmt:
 		case T_PLAssignStmt:
 			result = true;
