@@ -369,6 +369,13 @@ coerce_type(ParseState *pstate, Node *node,
 
 		return result;
 	}
+    if(IsA(node, Param) && ((Param *) node)->paramkind == PARAM_SESSION_VARIABLE){
+        Param *param = (Param *) node;
+        /* Set the required type for future parsing */
+        param->paramtype = targetTypeId;
+
+        return (Node *) param;
+    }
 	if (IsA(node, Param) &&
 		pstate != NULL && pstate->p_coerce_param_hook != NULL)
 	{

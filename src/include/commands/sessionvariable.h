@@ -31,6 +31,12 @@ extern void SaveVariable(sessionVariable *result, Node *expr);
 extern Node *
 makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value);
 
+extern Param *
+getParamSessionVariable(char *name);
+
+extern Const *
+getConstSessionVariable(char *name, Oid type);
+
 extern void SetSessionVariable(char *varname, Node *expr);
 
 #endif //PGSQL_SESSIONVARIABLE_H

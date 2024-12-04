@@ -368,6 +368,7 @@ typedef enum ParamKind
 	PARAM_EXEC,
 	PARAM_SUBLINK,
 	PARAM_MULTIEXPR,
+    PARAM_SESSION_VARIABLE,
 } ParamKind;
 
 typedef struct Param
@@ -382,6 +383,8 @@ typedef struct Param
 	Oid			paramcollid pg_node_attr(query_jumble_ignore);
 	/* token location, or -1 if unknown */
 	ParseLoc	location;
+    /* Session variable ID if any */
+    char *      paramsesvarid;
 } Param;
 
 /*

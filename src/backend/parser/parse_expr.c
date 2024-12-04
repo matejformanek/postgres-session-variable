@@ -39,7 +39,6 @@
 #include "utils/lsyscache.h"
 #include "utils/timestamp.h"
 #include "utils/xml.h"
-#include "access/session.h"
 #include "commands/sessionvariable.h"
 
 /* GUC parameters */
@@ -639,7 +638,6 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 	{
 		case 1:
 			{
-                sessionVariable *variable;
 				Node	   *field1 = (Node *) linitial(cref->fields);
 
 				colname = strVal(field1);
@@ -668,10 +666,8 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 													cref->location);
 				}
 
-                if(node == NULL && CurrentSession != NULL && CurrentSession->variables != NULL){
-                    variable = (sessionVariable *) hash_search(CurrentSession->variables, colname, HASH_FIND, NULL);
-                    node = variable ? variable->expr : NULL;
-                }
+                if(node == NULL)
+                    node = (Node *) getParamSessionVariable(colname);
 				break;
 			}
 		case 2:

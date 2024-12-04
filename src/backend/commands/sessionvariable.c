@@ -45,6 +45,7 @@
 #include "utils/memutils.h"
 #include "common/hashfn.h"
 #include "parser/parse_expr.h"
+#include "parser/parse_coerce.h"
 #include "rewrite/rewriteHandler.h"
 #include "tcop/tcopprot.h"
 #include "executor/executor.h"
@@ -54,6 +55,65 @@
 void initSessionVariables(void);
 
 void SaveVariable(sessionVariable *result, Node *expr);
+
+/*
+ * Returns Const value of a session variable
+ * type allows you to define the desired type you want the Const to be coerced to.
+ * If the value can not be coerced returns NULL.
+ * To skip coercion set type = UNKNOWNOID
+ **/
+Const *
+getConstSessionVariable(char *name, Oid type){
+    if(CurrentSession == NULL || CurrentSession->variables == NULL)
+        return NULL;
+    
+    Const *result;
+    sessionVariable *variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
+    
+    if(!variable)
+        return NULL;
+    
+    result = (Const *) variable->expr;
+
+    /* UNKNOWNOID if you just want to return the current value
+     * If the requested type is given make sure we can coerce
+     * Else return NULL
+     **/
+    if(type != UNKNOWNOID && type != result->consttype)
+        return (Const *) coerce_type(NULL,
+                                     (Node *) result,
+                                     result->consttype,
+                                     type,
+                                     -1,
+                                     COERCION_IMPLICIT,
+                                     COERCE_IMPLICIT_CAST,
+                                     -1);
+    
+    return result;
+}
+
+Param *
+getParamSessionVariable(char *name){
+    if(CurrentSession == NULL || CurrentSession->variables == NULL)
+        return NULL;
+    
+    sessionVariable *variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
+    Param *param = makeNode(Param);
+    Const *con;
+    
+    if(!variable || !variable->expr)
+        return NULL;
+    
+    con = (Const *) variable->expr; 
+    
+    param->paramkind = PARAM_SESSION_VARIABLE;
+    param->paramsesvarid = name;
+    param->paramtype = con->consttype;
+    param->paramtypmod = con->consttypmod;
+    param->paramcollid = con->constcollid;
+    
+    return param;
+}
 
 Node *
 makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value) {

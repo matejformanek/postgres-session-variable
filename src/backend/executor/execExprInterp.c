@@ -59,6 +59,7 @@
 #include "access/heaptoast.h"
 #include "catalog/pg_type.h"
 #include "commands/sequence.h"
+#include "commands/sessionvariable.h"
 #include "executor/execExpr.h"
 #include "executor/nodeSubplan.h"
 #include "funcapi.h"
@@ -450,6 +451,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 		&&CASE_EEOP_PARAM_EXEC,
 		&&CASE_EEOP_PARAM_EXTERN,
 		&&CASE_EEOP_PARAM_CALLBACK,
+		&&CASE_EEOP_PARAM_SESVAR,
 		&&CASE_EEOP_PARAM_SET,
 		&&CASE_EEOP_CASE_TESTVAL,
 		&&CASE_EEOP_MAKE_READONLY,
@@ -1098,6 +1100,27 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 			op->d.cparam.paramfunc(state, op, econtext);
 			EEO_NEXT();
 		}
+
+        EEO_CASE(EEOP_PARAM_SESVAR)
+        {
+            /*
+             * op->d.sesvar.sesvartype Contains type requested by the query
+             * The value itself can be save with unknownoid and just
+             * here we try to match it to the requested type oid
+             **/
+            Const *coerced, *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
+            
+            if(con) {
+                *op->resvalue = con->constvalue;
+                *op->resnull = con->constisnull;
+            }
+            else {
+                *op->resvalue = (Datum) 0;
+                *op->resnull = true;
+            }
+            
+            EEO_NEXT();
+        }
 
 		EEO_CASE(EEOP_PARAM_SET)
 		{

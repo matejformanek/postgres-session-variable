@@ -160,6 +160,7 @@ typedef enum ExprEvalOp
 	EEOP_PARAM_EXEC,
 	EEOP_PARAM_EXTERN,
 	EEOP_PARAM_CALLBACK,
+    EEOP_PARAM_SESVAR,
 	/* set PARAM_EXEC value */
 	EEOP_PARAM_SET,
 
@@ -399,6 +400,13 @@ typedef struct ExprEvalStep
 			int			paramid;	/* numeric ID for parameter */
 			Oid			paramtype;	/* OID of parameter's datatype */
 		}			param;
+
+        /* for EEOP_PARAM_SESVAR */
+        struct
+        {
+            char	    *sesvarid;	/* char* ID for sesvar */
+            Oid			sesvartype;	/* OID of sesvar's datatype */
+        }			sesvar;
 
 		/* for EEOP_PARAM_CALLBACK */
 		struct

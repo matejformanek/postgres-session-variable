@@ -167,7 +167,7 @@ $$ LANGUAGE plpgsql;
 SELECT @pl;
  @pl 
 -----
-  72
+  55
 (1 row)
 
 DROP TABLE test;
