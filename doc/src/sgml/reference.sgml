@@ -208,6 +208,7 @@
    &setConstraints;
    &setRole;
    &setSessionAuth;
+   &setSessionVariable;
    &setTransaction;
    &show;
    &startTransaction;

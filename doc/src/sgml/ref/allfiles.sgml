@@ -180,6 +180,7 @@ Complete list of usable sgml source files in this directory.
 <!ENTITY setConstraints     SYSTEM "set_constraints.sgml">
 <!ENTITY setRole            SYSTEM "set_role.sgml">
 <!ENTITY setSessionAuth     SYSTEM "set_session_auth.sgml">
+<!ENTITY setSessionVariable SYSTEM "set_session_variable.sgml">
 <!ENTITY setTransaction     SYSTEM "set_transaction.sgml">
 <!ENTITY show               SYSTEM "show.sgml">
 <!ENTITY startTransaction   SYSTEM "start_transaction.sgml">
