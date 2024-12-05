@@ -26,7 +26,7 @@ typedef struct sessionVariable {
     Node *expr;
 } sessionVariable;
 
-extern void SaveVariable(sessionVariable *result, Node *expr);
+extern void SaveVariable(sessionVariable *result, Node *expr, bool exists);
 
 extern Node *
 makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value);

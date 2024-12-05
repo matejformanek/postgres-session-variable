@@ -1108,10 +1108,10 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
              * The value itself can be save with unknownoid and just
              * here we try to match it to the requested type oid
              **/
-            Const *coerced, *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
+            Const *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
             
             if(con) {
-                *op->resvalue = con->constvalue;
+                *op->resvalue = datumCopy(con->constvalue, con->constbyval, con->constlen);
                 *op->resnull = con->constisnull;
             }
             else {

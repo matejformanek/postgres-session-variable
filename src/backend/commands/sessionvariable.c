@@ -54,7 +54,7 @@
 
 void initSessionVariables(void);
 
-void SaveVariable(sessionVariable *result, Node *expr);
+void SaveVariable(sessionVariable *result, Node *expr, bool exists);
 
 /*
  * Returns Const value of a session variable
@@ -132,7 +132,11 @@ makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int
 }
 
 void
-SaveVariable(sessionVariable *result, Node *expr) {
+SaveVariable(sessionVariable *result, Node *expr, bool exists) {
+    /* Free Node if we are rewriting new data */
+    if(exists)
+        pfree(result->expr);
+    
     MemoryContext oldContext;
 
     Assert(result);
@@ -170,7 +174,8 @@ void SetSessionVariable(char *varname, Node *expr) {
     
     ref = (sessionVariable *) hash_search(CurrentSession->variables, varname, HASH_ENTER, &found);
 
-    if (ref == NULL) elog(ERROR, "Could not allocate space for session variable");
+    if (ref == NULL) 
+        elog(ERROR, "Could not allocate space for session variable");
 
-    SaveVariable(ref, expr);
+    SaveVariable(ref, expr, found);
 }
