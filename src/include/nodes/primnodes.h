@@ -1388,6 +1388,24 @@ typedef struct ArrayExpr
 } ArrayExpr;
 
 /*
+ * Session variable assignment expression
+ * 
+ * SELECT @var := a_expr
+ */
+typedef struct SesVarExpr
+{
+    Expr		xpr;
+    /* Value to be assigned */
+    Node        *arg;
+    /* PG_TYPE OID of result value */
+    Oid			resulttype pg_node_attr(query_jumble_ignore);
+    /* session variable id = @var */
+    char        *name;
+    /* token location, or -1 if unknown */
+    ParseLoc	location;
+} SesVarExpr;
+
+/*
  * RowExpr - a ROW() expression
  *
  * Note: the list of fields must have a one-for-one correspondence with

@@ -81,6 +81,9 @@ exprType(const Node *expr)
 		case T_OpExpr:
 			type = ((const OpExpr *) expr)->opresulttype;
 			break;
+        case T_SesVarExpr:
+            type = ((const SesVarExpr *) expr)->resulttype;
+            break;
 		case T_DistinctExpr:
 			type = ((const DistinctExpr *) expr)->opresulttype;
 			break;
@@ -851,6 +854,9 @@ exprCollation(const Node *expr)
 			break;
 		case T_NamedArgExpr:
 			coll = exprCollation((Node *) ((const NamedArgExpr *) expr)->arg);
+			break;
+		case T_SesVarExpr:
+			coll = exprCollation((Node *) ((const SesVarExpr *) expr)->arg);
 			break;
 		case T_OpExpr:
 			coll = ((const OpExpr *) expr)->opcollid;
@@ -2196,6 +2202,8 @@ expression_tree_walker_impl(Node *node,
 			break;
 		case T_NamedArgExpr:
 			return WALK(((NamedArgExpr *) node)->arg);
+		case T_SesVarExpr:
+			return WALK(((SesVarExpr *) node)->arg);
 		case T_OpExpr:
 		case T_DistinctExpr:	/* struct-equivalent to OpExpr */
 		case T_NullIfExpr:		/* struct-equivalent to OpExpr */
@@ -3094,6 +3102,15 @@ expression_tree_mutator_impl(Node *node,
 				return (Node *) newnode;
 			}
 			break;
+        case T_SesVarExpr:
+            {
+                SesVarExpr *nexpr = (SesVarExpr *) node;
+                SesVarExpr *newnode;
+
+                FLATCOPY(newnode, nexpr, SesVarExpr);
+                MUTATE(newnode->arg, nexpr->arg, Expr *);
+                return (Node *) newnode;
+            }
 		case T_NamedArgExpr:
 			{
 				NamedArgExpr *nexpr = (NamedArgExpr *) node;

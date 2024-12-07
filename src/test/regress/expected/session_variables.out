@@ -204,3 +204,54 @@ SELECT @pl;
 (1 row)
 
 DROP PROCEDURE set_session_variables_param;
+-- SELECT simple assign
+SELECT @var_int := 53;
+ @var_int 
+----------
+       53
+(1 row)
+
+SELECT @var_string := 'Text',
+       @var_null := NULL,
+       @var_date := '2024-05-01',
+       @var_array := ARRAY [1,5,3,4];
+ @var_string | @var_null | @var_date  | @var_array 
+-------------+-----------+------------+------------
+ Text        |           | 2024-05-01 | {1,5,3,4}
+(1 row)
+
+-- Selection plus operations with values
+SELECT @var_int,
+       @var_int + 5,
+       @var_null,
+       @var_string,
+       @var_string || ' Concat',
+       @var_date,
+       @var_date::DATE + '1 MONTH'::INTERVAL,
+       @var_array,
+       (@var_array::anyarray)[2];
+ @var_int | ?column? | @var_null | @var_string |  ?column?   | @var_date  |         ?column?         | @var_array | @var_array 
+----------+----------+-----------+-------------+-------------+------------+--------------------------+------------+------------
+       53 |       58 |           | Text        | Text Concat | 2024-05-01 | Sat Jun 01 00:00:00 2024 | {1,5,3,4}  |          5
+(1 row)
+
+-- Cumulative query
+SET @cum_int := 0,
+    @cum_char := 'Hello';
+SELECT @cum_int := @cum_int + num, @cum_char := @cum_char || ', hello again'
+FROM GENERATE_SERIES(1, 5, 1) num;
+ @cum_int |                               @cum_char                                
+----------+------------------------------------------------------------------------
+        1 | Hello, hello again
+        3 | Hello, hello again, hello again
+        6 | Hello, hello again, hello again, hello again
+       10 | Hello, hello again, hello again, hello again, hello again
+       15 | Hello, hello again, hello again, hello again, hello again, hello again
+(5 rows)
+
+SELECT @cum_int, @cum_char;
+ @cum_int |                               @cum_char                                
+----------+------------------------------------------------------------------------
+       15 | Hello, hello again, hello again, hello again, hello again, hello again
+(1 row)
+

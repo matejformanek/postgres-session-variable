@@ -171,3 +171,31 @@ CALL set_session_variables_param(5);
 SELECT @pl;
 
 DROP PROCEDURE set_session_variables_param;
+
+-- SELECT simple assign
+SELECT @var_int := 53;
+
+SELECT @var_string := 'Text',
+       @var_null := NULL,
+       @var_date := '2024-05-01',
+       @var_array := ARRAY [1,5,3,4];
+
+-- Selection plus operations with values
+SELECT @var_int,
+       @var_int + 5,
+       @var_null,
+       @var_string,
+       @var_string || ' Concat',
+       @var_date,
+       @var_date::DATE + '1 MONTH'::INTERVAL,
+       @var_array,
+       (@var_array::anyarray)[2];
+
+-- Cumulative query
+SET @cum_int := 0,
+    @cum_char := 'Hello';
+
+SELECT @cum_int := @cum_int + num, @cum_char := @cum_char || ', hello again'
+FROM GENERATE_SERIES(1, 5, 1) num;
+
+SELECT @cum_int, @cum_char;

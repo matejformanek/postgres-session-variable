@@ -64,11 +64,13 @@ void SaveVariable(sessionVariable *result, Node *expr, bool exists);
  **/
 Const *
 getConstSessionVariable(char *name, Oid type){
+    Const *result;
+    sessionVariable *variable;
+    
     if(CurrentSession == NULL || CurrentSession->variables == NULL)
         return NULL;
-    
-    Const *result;
-    sessionVariable *variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
+
+    variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
     
     if(!variable)
         return NULL;
@@ -79,7 +81,8 @@ getConstSessionVariable(char *name, Oid type){
      * If the requested type is given make sure we can coerce
      * Else return NULL
      **/
-    if(type != UNKNOWNOID && type != result->consttype)
+    if(type != UNKNOWNOID && type != result->consttype && result->constisnull == false &&
+       can_coerce_type(1, &result->consttype, &type, COERCION_IMPLICIT))
         return (Const *) coerce_type(NULL,
                                      (Node *) result,
                                      result->consttype,
@@ -94,12 +97,14 @@ getConstSessionVariable(char *name, Oid type){
 
 Param *
 getParamSessionVariable(char *name){
+    Param *param = makeNode(Param);
+    sessionVariable *variable;
+    Const *con;
+    
     if(CurrentSession == NULL || CurrentSession->variables == NULL)
         return NULL;
     
-    sessionVariable *variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
-    Param *param = makeNode(Param);
-    Const *con;
+    variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
     
     if(!variable || !variable->expr)
         return NULL;
@@ -133,14 +138,14 @@ makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int
 
 void
 SaveVariable(sessionVariable *result, Node *expr, bool exists) {
+    MemoryContext oldContext;
+    
+    Assert(result);
+    
     /* Free Node if we are rewriting new data */
     if(exists)
         pfree(result->expr);
     
-    MemoryContext oldContext;
-
-    Assert(result);
-
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
 
     result->expr = (Node *) copyObject(expr);

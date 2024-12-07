@@ -17180,6 +17180,14 @@ target_el:	a_expr AS ColLabel
 					$$->val = (Node *) $1;
 					$$->location = @1;
 				}
+			| SESSION_VAR_NAME COLON_EQUALS a_expr
+                {
+                    $$ = makeNode(ResTarget);
+                    $$->name = $1;
+                    $$->indirection = NIL;
+                    $$->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
+                    $$->location = @3;
+                }
 			| a_expr BareColLabel
 				{
 					$$ = makeNode(ResTarget);

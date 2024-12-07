@@ -424,6 +424,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 		&&CASE_EEOP_ASSIGN_TMP,
 		&&CASE_EEOP_ASSIGN_TMP_MAKE_RO,
 		&&CASE_EEOP_CONST,
+        &&CASE_EEOP_SESVAREXPR,
 		&&CASE_EEOP_FUNCEXPR,
 		&&CASE_EEOP_FUNCEXPR_STRICT,
 		&&CASE_EEOP_FUNCEXPR_FUSAGE,
@@ -1101,6 +1102,40 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 			EEO_NEXT();
 		}
 
+        EEO_CASE(EEOP_SESVAREXPR)
+        {
+            Datum arg_value;
+            bool arg_isnull;
+            Oid typeOid;
+            int16 typLen;
+            bool typByVal;
+            Oid collid;
+
+            /* Evaluate arg */
+            arg_value = ExecEvalExpr(op->d.sesvar.sesvarargstate, econtext, &arg_isnull);
+            
+            /* Get necessarily data for saving variable */
+            typeOid = op->d.sesvar.sesvartype;
+            get_typlenbyval(typeOid, &typLen, &typByVal);
+            collid = get_typcollation(typeOid);
+            
+            /* Set the new value to session variable */
+            SetSessionVariable(op->d.sesvar.sesvarid,
+                               makeConstSessionVariable(typeOid,
+                                                        -1,
+                                                        collid,
+                                                        typByVal,
+                                                        typLen,
+                                                        arg_isnull,
+                                                        arg_value));
+            
+            /* Output value */
+            *op->resvalue = arg_value;
+            *op->resnull = arg_isnull;
+            
+            EEO_NEXT();
+        }
+        
         EEO_CASE(EEOP_PARAM_SESVAR)
         {
             /*
@@ -1110,9 +1145,9 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
              **/
             Const *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
             
-            if(con) {
+            if(con && con->constisnull == false) {
                 *op->resvalue = datumCopy(con->constvalue, con->constbyval, con->constlen);
-                *op->resnull = con->constisnull;
+                *op->resnull = false;
             }
             else {
                 *op->resvalue = (Datum) 0;

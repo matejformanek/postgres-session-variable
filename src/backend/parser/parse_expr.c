@@ -54,6 +54,7 @@ static Node *transformAExprDistinct(ParseState *pstate, A_Expr *a);
 static Node *transformAExprNullIf(ParseState *pstate, A_Expr *a);
 static Node *transformAExprIn(ParseState *pstate, A_Expr *a);
 static Node *transformAExprBetween(ParseState *pstate, A_Expr *a);
+static Node *transformAExprSessionVariable(ParseState *pstate, A_Expr *a);
 static Node *transformMergeSupportFunc(ParseState *pstate, MergeSupportFunc *f);
 static Node *transformBoolExpr(ParseState *pstate, BoolExpr *a);
 static Node *transformFuncCall(ParseState *pstate, FuncCall *fn);
@@ -212,6 +213,9 @@ transformExprRecurse(ParseState *pstate, Node *expr)
 					case AEXPR_NOT_BETWEEN_SYM:
 						result = transformAExprBetween(pstate, a);
 						break;
+                    case AEXPR_SESSION_VARIABLE:
+                        result = transformAExprSessionVariable(pstate, a);
+                        break;
 					default:
 						elog(ERROR, "unrecognized A_Expr kind: %d", a->kind);
 						result = NULL;	/* keep compiler quiet */
@@ -1374,6 +1378,18 @@ transformAExprBetween(ParseState *pstate, A_Expr *a)
 	}
 
 	return transformExprRecurse(pstate, result);
+}
+
+static Node *
+transformAExprSessionVariable(ParseState *pstate, A_Expr *a)
+{
+    SesVarExpr *result = makeNode(SesVarExpr);
+    result->arg = transformExprRecurse(pstate, a->rexpr);
+    result->resulttype = exprType(result->arg);
+    result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
+    result->location = a->location;
+    
+    return (Node *) result;
 }
 
 static Node *

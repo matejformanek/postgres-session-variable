@@ -336,6 +336,18 @@ assign_collations_walker(Node *node, assign_collations_context *context)
 				}
 			}
 			break;
+        case T_SesVarExpr: 
+            {
+                SesVarExpr *expr = (SesVarExpr *) node;
+    
+                assign_expr_collations(context->pstate, expr->arg);
+                /*
+                 * Since the result is always composite and therefore never
+                 * has a collation, we can just stop here: this node has no
+                 * impact on the collation of its parent.
+                 */
+                return false;    /* done */
+            }   
 		case T_RowExpr:
 			{
 				/*
