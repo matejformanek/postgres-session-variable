@@ -29,6 +29,7 @@
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
 #include "utils/typcache.h"
+#include "commands/sessionvariable.h"
 
 
 /*
@@ -690,6 +691,7 @@ make_op(ParseState *pstate, List *opname, Node *ltree, Node *rtree,
 		/* otherwise, binary operator */
 		ltypeId = exprType(ltree);
 		rtypeId = exprType(rtree);
+        sesvarBinaryExprType(ltree, rtree, &ltypeId, &rtypeId);
 		tup = oper(pstate, opname, ltypeId, rtypeId, false, location);
 	}
 

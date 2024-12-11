@@ -56,6 +56,8 @@ void initSessionVariables(void);
 
 void SaveVariable(sessionVariable *result, Node *expr, bool exists);
 
+void typeNegotiation(Param *param, Oid *currentType, Oid targetType);
+
 /*
  * Returns Const value of a session variable
  * type allows you to define the desired type you want the Const to be coerced to.
@@ -207,4 +209,89 @@ void SetSessionVariable(char *varname, Node *expr) {
         elog(ERROR, "Could not allocate space for session variable");
 
     SaveVariable(ref, expr, found);
+}
+
+/*
+ * Find the best matching type for the variable.
+ * This function does NOT change the variable itself only
+ * changes the recommended type for future coercion.
+ **/
+void typeNegotiation(Param *param, Oid *currentType, Oid targetType){
+    switch (targetType) {
+        case INT2OID:
+        case INT4OID:
+        case INT8OID:
+        case FLOAT4OID:
+        case FLOAT8OID:
+        case NUMERICOID:
+        case MONEYOID:
+            /*
+             * If the target type requires any kind of numeric coercion
+             * always try to match it to the NUMERIC type.
+             * This makes the number format provided by user very benevolent.
+             * 
+             * If we didn't implement this then following case would throw ERROR
+             * of us not being able to coerce the variable to type INTEGER:
+             *  
+             *  SET @var := '10.5';
+             *  SELECT @var * 2;
+             **/
+            param->paramtype = *currentType = NUMERICOID;
+            break;
+        case DATEOID:
+        case INTERVALOID:
+            /*
+             * Example case we need to cover '2024-01-01' + '1 YEAR'::INTERVAL
+             * In this case the default behavior is to try and coerce DATE to INTERVAL -> ERROR
+             * 
+             * Let's try to get a step ahead and check whether DATE or INTERVAL is desired
+             **/
+            break;
+        default:
+            break;
+    }
+}
+
+/*
+ * Inside a binary expression we can get a SESVAR variable
+ * Due to the philosophy of SEVAR being type-free it is our job
+ * to find the best type match when given a value with UNKNOWNOID
+ **/
+void
+sesvarBinaryExprType(Node *ltree, Node *rtree, Oid *ltypeId, Oid *rtypeId) {
+    Param *lparam = IsA(ltree, Param) &&
+                    ((Param *) ltree)->paramkind == PARAM_SESSION_VARIABLE ? (Param *) ltree
+                                                                           : NULL;
+    Param *rparam = IsA(rtree, Param) &&
+                    ((Param *) rtree)->paramkind == PARAM_SESSION_VARIABLE ? (Param *) rtree
+                                                                           : NULL;
+    Param *param;
+    Oid targetType, *currentType;
+
+    /*
+     * No SESVAR or already defined types -> nothing to do
+     * 
+     * Note: Defined types could be in future check for compatibility here
+     * and coerced if not.
+     **/
+    if((!lparam && !rparam) || (*ltypeId != UNKNOWNOID && *rtypeId != UNKNOWNOID))
+        return;
+
+    if (lparam && rparam){
+        /*
+         * Both variables are SESVAR
+         * For now let the user specify the type of at least one
+         * to make the expression work
+         * 
+         * Note: In the future maybe try if it is a NUMERIC 
+         * and if not just throw the unknown type ERROR
+         **/
+        return;
+    }
+
+    param = lparam ? lparam : rparam;
+    currentType = lparam ? ltypeId : rtypeId;
+    targetType = lparam ? *rtypeId : *ltypeId;
+
+    typeNegotiation(param, currentType, targetType);
 }

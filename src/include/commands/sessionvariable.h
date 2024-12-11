@@ -39,4 +39,7 @@ getConstSessionVariable(char *name, Oid type);
 
 extern void SetSessionVariable(char *varname, Node *expr);
 
+extern void
+sesvarBinaryExprType(Node *ltree, Node *rtree, Oid *ltypeId, Oid *rtypeId);
+
 #endif //PGSQL_SESSIONVARIABLE_H

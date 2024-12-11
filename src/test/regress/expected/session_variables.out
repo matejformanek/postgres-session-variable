@@ -58,6 +58,20 @@ SELECT @num::INT;
     5
 (1 row)
 
+SET @numer := '10.5';
+SELECT @numer || ' TEXT';
+ ?column?  
+-----------
+ 10.5 TEXT
+(1 row)
+
+-- Make sure the SESVAR is of type NUMERIC not INT
+SELECT @numer * 2;
+ ?column? 
+----------
+     21.0
+(1 row)
+
 -- Self assigning
 SET @var := 5;
 SET @var := (@var * @var) + @var - 1;
@@ -283,3 +297,40 @@ SELECT @cum_int, @cum_char;
        15 | Hello, hello again, hello again, hello again, hello again, hello again
 (1 row)
 
+CREATE OR REPLACE FUNCTION taketext(str TEXT)
+    RETURNS TEXT
+AS
+$$
+BEGIN
+    RETURN str || ' Append';
+END;
+$$ LANGUAGE plpgsql;
+-- Call the same function with Different types
+DO
+$$
+    DECLARE
+        t TEXT;
+    BEGIN
+        FOR i IN 1..10
+            LOOP
+                IF i % 2 = 1 THEN
+                    SET @x := 10.5; -- numeric
+                ELSE
+                    SET @x := 'Ahoj';
+                END IF;
+                SELECT taketext(@x) INTO t;
+                RAISE NOTICE '%', t;
+            END LOOP;
+    END;
+$$;
+NOTICE:  10.5 Append
+NOTICE:  Ahoj Append
+NOTICE:  10.5 Append
+NOTICE:  Ahoj Append
+NOTICE:  10.5 Append
+NOTICE:  Ahoj Append
+NOTICE:  10.5 Append
+NOTICE:  Ahoj Append
+NOTICE:  10.5 Append
+NOTICE:  Ahoj Append
+DROP FUNCTION taketext;

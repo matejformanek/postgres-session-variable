@@ -34,6 +34,11 @@ SET @num := '5';
 SELECT @num;
 SELECT @num::INT;
 
+SET @numer := '10.5';
+SELECT @numer || ' TEXT';
+-- Make sure the SESVAR is of type NUMERIC not INT
+SELECT @numer * 2;
+
 -- Self assigning
 SET @var := 5;
 SET @var := (@var * @var) + @var - 1;
@@ -209,3 +214,33 @@ SELECT @cum_int := @cum_int + num, @cum_char := @cum_char || ', hello again'
 FROM GENERATE_SERIES(1, 5, 1) num;
 
 SELECT @cum_int, @cum_char;
+
+CREATE OR REPLACE FUNCTION taketext(str TEXT)
+    RETURNS TEXT
+AS
+$$
+BEGIN
+    RETURN str || ' Append';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Call the same function with Different types
+DO
+$$
+    DECLARE
+        t TEXT;
+    BEGIN
+        FOR i IN 1..10
+            LOOP
+                IF i % 2 = 1 THEN
+                    SET @x := 10.5; -- numeric
+                ELSE
+                    SET @x := 'Ahoj';
+                END IF;
+                SELECT taketext(@x) INTO t;
+                RAISE NOTICE '%', t;
+            END LOOP;
+    END;
+$$;
+
+DROP FUNCTION taketext;

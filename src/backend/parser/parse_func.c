@@ -117,6 +117,7 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 	FuncDetailCode fdresult;
 	char		aggkind = 0;
 	ParseCallbackState pcbstate;
+    int         argposition = 0;
 
 	/*
 	 * If there's an aggregate filter, transform it using transformWhereClause
@@ -164,7 +165,10 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 			continue;
 		}
 
-		actual_arg_types[nargs++] = argtype;
+        if(IsA(arg, Param) && ((Param *) arg)->paramkind == PARAM_SESSION_VARIABLE)
+            actual_arg_types[nargs++] = UNKNOWNOID;
+        else
+		    actual_arg_types[nargs++] = argtype;
 	}
 
 	/*
