@@ -65,7 +65,11 @@ void SaveVariable(sessionVariable *result, Node *expr, bool exists);
 Const *
 getConstSessionVariable(char *name, Oid type){
     Const *result;
+    Node *coerced = NULL;
     sessionVariable *variable;
+    Oid outputFunction;
+    bool typeIsVarlen;
+    char *cstringValue;
     
     if(CurrentSession == NULL || CurrentSession->variables == NULL)
         return NULL;
@@ -78,21 +82,41 @@ getConstSessionVariable(char *name, Oid type){
     result = (Const *) variable->expr;
 
     /* UNKNOWNOID if you just want to return the current value
-     * If the requested type is given make sure we can coerce
-     * Else return NULL
+     * If the requested type is given try to coerce
      **/
-    if(type != UNKNOWNOID && type != result->consttype && result->constisnull == false &&
-       can_coerce_type(1, &result->consttype, &type, COERCION_IMPLICIT))
-        return (Const *) coerce_type(NULL,
-                                     (Node *) result,
-                                     result->consttype,
-                                     type,
-                                     -1,
-                                     COERCION_IMPLICIT,
-                                     COERCE_IMPLICIT_CAST,
-                                     -1);
+    if(type != UNKNOWNOID && type != result->consttype && result->constisnull == false){
+        /*
+         * If type is not UNKNOWNOID it means that the default type assigned
+         * on creation is not desired -> Get the CString format and try whether it can 
+         * be coerced as the specified type.
+         * 
+         * It would be impractical to save all the variables with UNKNOWNOID
+         * Rather save them with (best match)/(user type definition) and coerce as last option
+         **/
+        if(result->consttype != UNKNOWNOID){
+            result = (Const *) copyObject(variable->expr);
+            
+            getTypeOutputInfo(result->consttype, &outputFunction, &typeIsVarlen);
+
+            cstringValue = OidOutputFunctionCall(outputFunction, result->constvalue);
+
+            result->consttype = UNKNOWNOID;
+            result->constvalue = CStringGetDatum(cstringValue);
+            result->constlen = -2;
+            result->constbyval = false;
+        }
+        
+        coerced = coerce_type(NULL,
+                              (Node *) result,
+                              result->consttype,
+                              type,
+                              -1,
+                              COERCION_IMPLICIT,
+                              COERCE_IMPLICIT_CAST,
+                              -1);
+    }
     
-    return result;
+    return coerced ? (Const *) coerced : (Const *) variable->expr;
 }
 
 Param *

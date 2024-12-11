@@ -24,6 +24,16 @@ SELECT @var_string,
        @var_date,
        @var_array;
 
+-- Number by default but convertible to text
+SET @num := 5;
+SELECT @num;
+SELECT @num::TEXT;
+
+-- Other way around as well
+SET @num := '5';
+SELECT @num;
+SELECT @num::INT;
+
 -- Self assigning
 SET @var := 5;
 SET @var := (@var * @var) + @var - 1;

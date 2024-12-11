@@ -30,6 +30,34 @@ SELECT @var_string,
  Text        |           | 2024-05-01 | {1,5,3,4}
 (1 row)
 
+-- Number by default but convertible to text
+SET @num := 5;
+SELECT @num;
+ @num 
+------
+    5
+(1 row)
+
+SELECT @num::TEXT;
+ @num 
+------
+ 5
+(1 row)
+
+-- Other way around as well
+SET @num := '5';
+SELECT @num;
+ @num 
+------
+ 5
+(1 row)
+
+SELECT @num::INT;
+ @num 
+------
+    5
+(1 row)
+
 -- Self assigning
 SET @var := 5;
 SET @var := (@var * @var) + @var - 1;
