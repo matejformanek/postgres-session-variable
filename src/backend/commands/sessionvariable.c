@@ -37,6 +37,7 @@
 #include "utils/dynahash.h"
 #include "utils/fmgrprotos.h"
 #include "utils/guc_hooks.h"
+#include "utils/plancache.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
@@ -167,8 +168,13 @@ SaveVariable(sessionVariable *result, Node *expr, bool exists) {
     Assert(result);
     
     /* Free Node if we are rewriting new data */
-    if(exists)
+    if(exists){
+        /* Invalidate cached plans if we are changing data type */
+        if(((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
+            PlanCacheSesVarCallback(result->key);
+        
         pfree(result->expr);
+    }
     
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
 

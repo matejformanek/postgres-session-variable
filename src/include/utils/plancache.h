@@ -110,6 +110,7 @@ typedef struct CachedPlanSource
 	/* These fields describe the current analyzed-and-rewritten query tree: */
 	List	   *query_list;		/* list of Query nodes, or NIL if not valid */
 	List	   *relationOids;	/* OIDs of relations the queries depend on */
+    List	   *relationSesVars;	/* List of dependent SESVAR for dynamic type invalidation */
 	List	   *invalItems;		/* other dependencies, as PlanInvalItems */
 	struct SearchPathMatcher *search_path;	/* search_path used for parsing
 											 * and planning */
@@ -234,5 +235,7 @@ extern bool CachedPlanIsSimplyValid(CachedPlanSource *plansource,
 
 extern CachedExpression *GetCachedExpression(Node *expr);
 extern void FreeCachedExpression(CachedExpression *cexpr);
+
+extern void PlanCacheSesVarCallback(const char *name);
 
 #endif							/* PLANCACHE_H */
