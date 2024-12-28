@@ -1976,6 +1976,12 @@ PlanCacheComputeResultDesc(List *stmt_list)
 	return NULL;
 }
 
+/*
+ * PlanCacheRelCallback
+ *		Sesvar inval callback function
+ *
+ * Invalidate all plans mentioning the given session variable
+ */
 void
 PlanCacheSesVarCallback(const char *name){
     dlist_iter	iter;
@@ -1986,6 +1992,10 @@ PlanCacheSesVarCallback(const char *name){
         CachedPlanSource *plansource = dlist_container(CachedPlanSource,
                                                        node, iter.cur);
 
+        /* If there's none sesvar -> nothing to do */
+        if(plansource->relationSesVars == NIL)
+            continue;
+        
         Assert(plansource->magic == CACHEDPLANSOURCE_MAGIC);
 
         /* No work if it's already invalidated */
