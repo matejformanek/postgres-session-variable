@@ -2395,7 +2395,7 @@ CreateCommandTag(Node *parsetree)
 			break;
 
         case T_SetSessionVariableStmt:
-            tag = CMD_SET_SESSION_VARIABLE;
+            tag = CMDTAG_SET_SESSION_VARIABLE;
             break;
             
 			/* utility statements --- same whether raw or cooked */

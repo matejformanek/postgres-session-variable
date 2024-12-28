@@ -4248,7 +4248,7 @@ exec_stmt_execsql(PLpgSQL_execstate *estate,
 			 */
 			if (plansource->commandTag == CMDTAG_INSERT ||
 				plansource->commandTag == CMDTAG_UPDATE ||
-				plansource->commandTag == CMD_SET_SESSION_VARIABLE ||
+				plansource->commandTag == CMDTAG_SET_SESSION_VARIABLE ||
 				plansource->commandTag == CMDTAG_DELETE ||
 				plansource->commandTag == CMDTAG_MERGE)
 			{
