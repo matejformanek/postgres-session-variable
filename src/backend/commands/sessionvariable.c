@@ -120,6 +120,13 @@ getConstSessionVariable(char *name, Oid type){
     return coerced ? (Const *) coerced : (Const *) variable->expr;
 }
 
+/*
+ * Returns Param node of SESVAR
+ * 
+ * Even though we save the value as a Const to handle the variable through parsing and later
+ * execution using Const would be a crucial mistake because the value of the sesvar inside a query
+ * can be altered (e.g. Cumulative sum).
+ **/
 Param *
 getParamSessionVariable(char *name){
     Param *param = makeNode(Param);
@@ -127,20 +134,33 @@ getParamSessionVariable(char *name){
     Const *con;
     
     if(CurrentSession == NULL || CurrentSession->variables == NULL)
-        return NULL;
+        initSessionVariables();
     
     variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
-    
-    if(!variable || !variable->expr)
-        return NULL;
-    
-    con = (Const *) variable->expr; 
-    
+
     param->paramkind = PARAM_SESSION_VARIABLE;
     param->paramsesvarid = name;
-    param->paramtype = con->consttype;
-    param->paramtypmod = con->consttypmod;
-    param->paramcollid = con->constcollid;
+    
+    /*
+     * Return dummy template if the sesvar is not yet saved. This way we can reference
+     * sevar's that has been created previously in the same chain.
+     * 
+     * SET @a := 5, @b := 5 + @a;
+     * 
+     * If the sesvar has not been initiated before this variable is evaluated we will throw ERROR: unrecognized.
+     **/
+    if(!variable || !variable->expr) {
+        param->paramtype = UNKNOWNOID;
+        param->paramtypmod = -1;
+        param->paramcollid = InvalidOid;
+    }
+    else {
+        con = (Const *) variable->expr;
+
+        param->paramtype = con->consttype;
+        param->paramtypmod = con->consttypmod;
+        param->paramcollid = con->constcollid;
+    }
     
     return param;
 }
@@ -186,6 +206,8 @@ SaveVariable(sessionVariable *result, Node *expr, bool exists) {
 void
 initSessionVariables() {
     HASHCTL ctl;
+    
+    Assert(CurrentSession != NULL);
 
     ctl.keysize = VARIABLE_SIZE;
     ctl.entrysize = sizeof(sessionVariable);

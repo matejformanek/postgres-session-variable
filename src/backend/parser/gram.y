@@ -2061,9 +2061,11 @@ session_variable_list:
 sessionVariableDef:
             SESSION_VAR_NAME COLON_EQUALS a_expr
                 {
-                    sessionVariableDef *n = makeNode(sessionVariableDef);
+                    ResTarget *n = makeNode(ResTarget);
                     n->name = $1;
-                    n->expr = $3;
+                    n->indirection = NIL;
+                    n->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
+                    n->location = @3;
                     $$ = (Node *) n;
                 }
         ;

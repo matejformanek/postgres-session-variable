@@ -4838,29 +4838,13 @@ ExecSetSessionVariable(PlanState *pstate)
         for (int i = 0; i < tupleDesc->natts; ++i)
         {
             Form_pg_attribute attr = TupleDescAttr(tupleDesc, i);
-            bool typByVal;
-            int16 typLen;
-            Node *expr;
-            int32 typmod = attr->atttypmod;
-            Oid typeOid = attr->atttypid;
-            Oid collid = attr->attcollation;
             
             /*
              * Thanks to the code inside grammar and analyze we know that each column should have it's assigned varname
              * If not it means user had to try and save more then 1 value inside the variable thus making one column nameless
              **/
             if(NameStr(attr->attname)[0] != '@')
-                elog(ERROR, "Can not assign more than 1 column into variable");
-
-            /*
-             * Save value inside Session variable HTAB 
-             **/
-            get_typlenbyval(typeOid, &typLen, &typByVal);
-
-            expr = makeConstSessionVariable(typeOid, typmod, collid, typByVal, typLen, slot->tts_isnull[i], slot->tts_values[i]);
-
-            /* Store the result directly into the session variable */
-            SetSessionVariable(NameStr(attr->attname), expr);
+                elog(ERROR, "Can not assign more than 1 column into session variable");
         }
     }
 
@@ -4918,7 +4902,7 @@ void
 ExecReScanSetSessionVariable(ModifySessionVariableState *node)
 {
     /*
-     * Currently, we don't need to support rescan on ModifyTable nodes. The
+     * Currently, we don't need to support rescan on ModifySessionVariable nodes. The
      * semantics of that would be a bit debatable anyway.
      */
     elog(ERROR, "ExecReScanSetSessionVariable is not implemented");

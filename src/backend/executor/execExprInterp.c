@@ -1145,7 +1145,10 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
              **/
             Const *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
             
-            if(con && con->constisnull == false) {
+            if(!con) {
+                elog(ERROR, "session variable \"%s\" does not exist", op->d.sesvar.sesvarid);
+            }
+            else if(con->constisnull == false) {
                 *op->resvalue = datumCopy(con->constvalue, con->constbyval, con->constlen);
                 *op->resnull = false;
             }

@@ -686,10 +686,10 @@ static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVari
     qry->targetList = NIL;
     foreach(tl, stmt->variables)
     {
-        sessionVariableDef *var = (sessionVariableDef *) lfirst(tl);
+        ResTarget *var = (ResTarget *) lfirst(tl);
         TargetEntry *tle;
 
-        tle = makeTargetEntry((Expr *) transformExpr(pstate, var->expr, EXPR_KIND_VALUES_SINGLE),
+        tle = makeTargetEntry((Expr *) transformExpr(pstate, var->val, EXPR_KIND_VALUES_SINGLE),
                               resno++,
                               var->name,
                               false);

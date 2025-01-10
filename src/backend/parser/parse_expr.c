@@ -670,7 +670,7 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 													cref->location);
 				}
 
-                if(node == NULL)
+                if(node == NULL && colname[0] == '@')
                     node = (Node *) getParamSessionVariable(colname);
 				break;
 			}

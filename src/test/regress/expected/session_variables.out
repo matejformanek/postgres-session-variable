@@ -67,13 +67,13 @@ SELECT @var;
    29
 (1 row)
 
--- Assigning from different variables - FOR NOW DEPRECATED 
--- SET @char_int := '5',
---     @created_int := @char_int + 3,
---     @multiple := @char_int * @created_int;
+-- Assigning from variables initiated earlier in the chain
+-- Have to specify @created_int::INT here due to the parsing order, even though that at the point of evaluating
+-- the last row we have the information that the @created_int sesvar is INT -> BUT when we firstly parsed Expr "*" 
+-- we didn't have this information yet thus giving us unknown * unknown ERROR
 SET @char_int := '5',
-    @created_int := 5 + 3,
-    @multiple := 5 * 8;
+    @created_int := @char_int + 3,
+    @multiple := @char_int * @created_int::INT;
 SELECT @char_int,
        @created_int,
        @multiple;
@@ -82,12 +82,21 @@ SELECT @char_int,
  5         |            8 |        40
 (1 row)
 
+SELECT @a := '5',
+       @b := @a + 3,
+       @c := @a * @b::INT; 
+ @a | @b | @c 
+----+----+----
+ 5  |  8 | 40
+(1 row)
+
+-- DDL
 CREATE TABLE test
 (
     col_int  INTEGER,
     col_char VARCHAR(32)
 );
--- DDL
+-- DML
 INSERT INTO test (col_int, col_char)
 VALUES (@char_int, @char_int),
        (@multiple / @char_int, @var_string || ' Concat'),
