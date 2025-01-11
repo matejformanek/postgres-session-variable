@@ -55,7 +55,7 @@
 
 void initSessionVariables(void);
 
-void SaveVariable(sessionVariable *result, Node *expr, bool exists);
+void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
 
 /*
  * Returns Const value of a session variable
@@ -64,28 +64,28 @@ void SaveVariable(sessionVariable *result, Node *expr, bool exists);
  * To skip coercion set type = UNKNOWNOID
  **/
 Const *
-getConstSessionVariable(char *name, Oid type){
+getConstSessionVariable(char *name, Oid type) {
     Const *result;
-    Node *coerced = NULL;
+    Node * coerced = NULL;
     sessionVariable *variable;
     Oid outputFunction;
     bool typeIsVarlen;
     char *cstringValue;
-    
-    if(CurrentSession == NULL || CurrentSession->variables == NULL)
+
+    if (CurrentSession == NULL || CurrentSession->variables == NULL)
         return NULL;
 
     variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
-    
-    if(!variable)
+
+    if (!variable)
         return NULL;
-    
+
     result = (Const *) variable->expr;
 
     /* UNKNOWNOID if you just want to return the current value
      * If the requested type is given try to coerce
      **/
-    if(type != UNKNOWNOID && type != result->consttype && result->constisnull == false){
+    if (type != UNKNOWNOID && type != result->consttype && result->constisnull == false) {
         /*
          * If type is not UNKNOWNOID it means that the default type assigned
          * on creation is not desired -> Get the CString format and try whether it can 
@@ -94,9 +94,9 @@ getConstSessionVariable(char *name, Oid type){
          * It would be impractical to save all the variables with UNKNOWNOID
          * Rather save them with (best match)/(user type definition) and coerce as last option
          **/
-        if(result->consttype != UNKNOWNOID){
+        if (result->consttype != UNKNOWNOID) {
             result = (Const *) copyObject(variable->expr);
-            
+
             getTypeOutputInfo(result->consttype, &outputFunction, &typeIsVarlen);
 
             cstringValue = OidOutputFunctionCall(outputFunction, result->constvalue);
@@ -106,7 +106,7 @@ getConstSessionVariable(char *name, Oid type){
             result->constlen = -2;
             result->constbyval = false;
         }
-        
+
         coerced = coerce_type(NULL,
                               (Node *) result,
                               result->consttype,
@@ -116,7 +116,7 @@ getConstSessionVariable(char *name, Oid type){
                               COERCE_IMPLICIT_CAST,
                               -1);
     }
-    
+
     return coerced ? (Const *) coerced : (Const *) variable->expr;
 }
 
@@ -128,19 +128,19 @@ getConstSessionVariable(char *name, Oid type){
  * can be altered (e.g. Cumulative sum).
  **/
 Param *
-getParamSessionVariable(char *name){
+getParamSessionVariable(char *name) {
     Param *param = makeNode(Param);
     sessionVariable *variable;
     Const *con;
-    
-    if(CurrentSession == NULL || CurrentSession->variables == NULL)
+
+    if (CurrentSession == NULL || CurrentSession->variables == NULL)
         initSessionVariables();
-    
+
     variable = (sessionVariable *) hash_search(CurrentSession->variables, name, HASH_FIND, NULL);
 
     param->paramkind = PARAM_SESSION_VARIABLE;
     param->paramsesvarid = name;
-    
+
     /*
      * Return dummy template if the sesvar is not yet saved. This way we can reference
      * sevar's that has been created previously in the same chain.
@@ -149,19 +149,18 @@ getParamSessionVariable(char *name){
      * 
      * If the sesvar has not been initiated before this variable is evaluated we will throw ERROR: unrecognized.
      **/
-    if(!variable || !variable->expr) {
+    if (!variable || !variable->expr) {
         param->paramtype = UNKNOWNOID;
         param->paramtypmod = -1;
         param->paramcollid = InvalidOid;
-    }
-    else {
+    } else {
         con = (Const *) variable->expr;
 
         param->paramtype = con->consttype;
         param->paramtypmod = con->consttypmod;
         param->paramcollid = con->constcollid;
     }
-    
+
     return param;
 }
 
@@ -182,31 +181,35 @@ makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int
 }
 
 void
-SaveVariable(sessionVariable *result, Node *expr, bool exists) {
+saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
     MemoryContext oldContext;
-    
+    Node *oldExpr = NULL;
+
     Assert(result);
-    
-    /* Free Node if we are rewriting new data */
-    if(exists){
+
+    if (exists) {
         /* Invalidate cached plans if we are changing data type */
-        if(((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
-            PlanCacheSesVarCallback(result->key);
-        
-        pfree(result->expr);
+        if (((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
+            PlanCacheSesVarInvalidation(result->key);
+
+        oldExpr = result->expr;
     }
-    
+
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
 
     result->expr = (Node *) copyObject(expr);
 
     MemoryContextSwitchTo(oldContext);
+
+    /* Free old Expr-Node if we rewrote it with new data */
+    if(oldExpr)
+        pfree(oldExpr);
 }
 
 void
 initSessionVariables() {
     HASHCTL ctl;
-    
+
     Assert(CurrentSession != NULL);
 
     ctl.keysize = VARIABLE_SIZE;
@@ -219,20 +222,20 @@ initSessionVariables() {
     Assert(CurrentSession->variables != NULL);
 }
 
-void SetSessionVariable(char *varname, Node *expr) {
+void setSessionVariable(char *varname, Node *expr) {
     sessionVariable *ref;
     bool found;
-    
+
     if (CurrentSession == NULL)
         elog(ERROR, "Session components are not initialized!");
 
     if (CurrentSession->variables == NULL)
         initSessionVariables();
-    
-    ref = (sessionVariable *) hash_search(CurrentSession->variables, varname, HASH_ENTER, &found);
 
-    if (ref == NULL) 
+    ref = (sessionVariable *) hash_search(CurrentSession->variables, varname, HASH_ENTER_NULL, &found);
+
+    if (ref == NULL)
         elog(ERROR, "Could not allocate space for session variable");
 
-    SaveVariable(ref, expr, found);
+    saveSessionVariable(ref, expr, found);
 }

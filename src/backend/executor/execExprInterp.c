@@ -1120,7 +1120,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
             collid = get_typcollation(typeOid);
             
             /* Set the new value to session variable */
-            SetSessionVariable(op->d.sesvar.sesvarid,
+            setSessionVariable(op->d.sesvar.sesvarid,
                                makeConstSessionVariable(typeOid,
                                                         -1,
                                                         collid,
@@ -1147,12 +1147,10 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
             
             if(!con) {
                 elog(ERROR, "session variable \"%s\" does not exist", op->d.sesvar.sesvarid);
-            }
-            else if(con->constisnull == false) {
+            } else if(con->constisnull == false) {
                 *op->resvalue = datumCopy(con->constvalue, con->constbyval, con->constlen);
                 *op->resnull = false;
-            }
-            else {
+            } else {
                 *op->resvalue = (Datum) 0;
                 *op->resnull = true;
             }

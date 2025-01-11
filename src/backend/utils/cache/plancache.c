@@ -1977,13 +1977,13 @@ PlanCacheComputeResultDesc(List *stmt_list)
 }
 
 /*
- * PlanCacheRelCallback
- *		Sesvar inval callback function
+ * PlanCacheSesVarInvalidation
+ *		Sesvar invalidation function
  *
  * Invalidate all plans mentioning the given session variable
  */
 void
-PlanCacheSesVarCallback(const char *name){
+PlanCacheSesVarInvalidation(const char *name){
     dlist_iter	iter;
 
     dlist_foreach(iter, &saved_plan_list)

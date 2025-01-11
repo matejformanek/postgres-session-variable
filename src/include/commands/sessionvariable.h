@@ -26,7 +26,7 @@ typedef struct sessionVariable {
     Node *expr;
 } sessionVariable;
 
-extern void SaveVariable(sessionVariable *result, Node *expr, bool exists);
+extern void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
 
 extern Node *
 makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value);
@@ -37,6 +37,6 @@ getParamSessionVariable(char *name);
 extern Const *
 getConstSessionVariable(char *name, Oid type);
 
-extern void SetSessionVariable(char *varname, Node *expr);
+extern void setSessionVariable(char *varname, Node *expr);
 
 #endif //PGSQL_SESSIONVARIABLE_H

@@ -675,7 +675,8 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
  *	  transform an SET @var := expr [, @var := expr]
  *	  Session variables
  */
-static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt){
+static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt)
+{
     Query	   *qry = makeNode(Query);
     ListCell *tl;
     AttrNumber resno = 1;

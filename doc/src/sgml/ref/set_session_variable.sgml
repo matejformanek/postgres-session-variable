@@ -103,6 +103,15 @@ SET @var := @var + 5;
   </para>
   
   <para>
+  Parametrized initialization = Referencing session variables that were initialized earlier in the same chain.
+<programlisting>
+SET @a := 1,
+    @b := @a * 5,
+    @c := @b::INT - @a;
+</programlisting>
+  </para>
+  
+  <para>
   To set the session variable <literal>var</literal> using cumulative sum:
 <programlisting>
 SET @var := 0;

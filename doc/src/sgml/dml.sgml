@@ -422,6 +422,17 @@ SET @a := @a + 1;
     </para>
     
     <para>
+    Moreover you can reference a session variable that has been just initiated in the same chain, 
+    but of course the referenced variable has to be declared inside the chain sooner than it is referenced.
+    This way you can leverage the parametrization already in the initialization phase.  
+<programlisting>
+SET @a := 1,
+    @b := @a * 5,
+    @c := @b::INT - @a;
+</programlisting>
+    </para>
+    
+    <para>
     Session variables can also be used as cumulative aggregators within a query,
     particularly in constructs like <command>SELECT</command>. For example, the syntax: 
 <programlisting>
