@@ -2073,11 +2073,27 @@ sessionVariableDef:
 /**
  * Equivalent of columnRef for variables -> session variable
  * is a "special column" in the parser life cycle.  
+ *
+ * Also we handle here the scenario where "@" represents custom operator instead of SESVAR
  */
 session_var_name_ref:
             SESSION_VAR_NAME
                 {
                     $$ = makeColumnRef($1, NIL, @1, yyscanner);
+                }
+              /* 
+               * Custom operator can be "@" as well but we give bigger precedence to variable
+               * If you want to use @ as an operator instead of sesvar you have to add schema or table
+               * path to specify that it is a column not sesvar. Alternatively we can just use
+               * brackets like: SELECT @(-5)
+               */
+            | SESSION_VAR_NAME indirection
+                {
+                    /* Remove "@" prefix */
+                    char *column_ref = pstrdup($1 + 1);
+                    
+                    /*$$ = makeColumnRef(column_ref, $2, @1, yyscanner);*/
+                    $$ = (Node *) makeSimpleA_Expr(AEXPR_OP, "@", NULL, makeColumnRef(column_ref, $2, @1, yyscanner), -1);			
                 }
         ;
 

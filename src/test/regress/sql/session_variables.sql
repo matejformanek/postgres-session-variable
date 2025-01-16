@@ -55,7 +55,7 @@ SELECT @char_int,
 
 SELECT @a := '5',
        @b := @a + 3,
-       @c := @a * @b::INT; 
+       @c := @a * @b::INT;
 
 -- DDL
 CREATE TABLE test
@@ -153,8 +153,6 @@ $$
 $$ LANGUAGE plpgsql;
 
 SELECT @pl;
-
-DROP TABLE test;
 
 -- PROCEDURE
 CREATE OR REPLACE PROCEDURE set_session_variables()
@@ -255,3 +253,27 @@ $$;
 DROP FUNCTION overloaded_text_numeric(str TEXT);
 
 DROP FUNCTION overloaded_text_numeric(str NUMERIC);
+
+-- Custom operator "@" X SESVAR
+
+INSERT INTO test VALUES (-11, 'Negative value');
+
+SET @col_int := -9;
+
+SELECT @col_int
+FROM test
+LIMIT 1;
+
+SELECT @test.col_int
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+
+SELECT @(col_int)
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+
+SELECT @(-5), @(SELECT -3);
+
+DROP TABLE test;

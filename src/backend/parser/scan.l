@@ -455,13 +455,6 @@ other			.
 
 %%
 
-{session_var}   {
-					SET_YYLLOC();
-
-                    yylval->str = pstrdup(yytext);
-                    return SESSION_VAR_NAME;
-                }
-
 {whitespace}	{
 					/* ignore */
 				}
@@ -1115,6 +1108,13 @@ other			.
 					yylval->str = ident;
 					return IDENT;
 				}
+
+{session_var}   {
+					SET_YYLLOC();
+
+                    yylval->str = pstrdup(yytext);
+                    return SESSION_VAR_NAME;
+                }
 
 {other}			{
 					SET_YYLLOC();

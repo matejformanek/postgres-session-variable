@@ -84,7 +84,7 @@ SELECT @char_int,
 
 SELECT @a := '5',
        @b := @a + 3,
-       @c := @a * @b::INT; 
+       @c := @a * @b::INT;
  @a | @b | @c 
 ----+----+----
  5  |  8 | 40
@@ -207,7 +207,6 @@ SELECT @pl;
   55
 (1 row)
 
-DROP TABLE test;
 -- PROCEDURE
 CREATE OR REPLACE PROCEDURE set_session_variables()
 AS
@@ -338,3 +337,39 @@ NOTICE:  10.5 Append numeric
 NOTICE:  Ahoj Append text
 DROP FUNCTION overloaded_text_numeric(str TEXT);
 DROP FUNCTION overloaded_text_numeric(str NUMERIC);
+-- Custom operator "@" X SESVAR
+INSERT INTO test VALUES (-11, 'Negative value');
+SET @col_int := -9;
+SELECT @col_int
+FROM test
+LIMIT 1;
+ @col_int 
+----------
+       -9
+(1 row)
+
+SELECT @test.col_int
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+ ?column? 
+----------
+       11
+(1 row)
+
+SELECT @(col_int)
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+ ?column? 
+----------
+       11
+(1 row)
+
+SELECT @(-5), @(SELECT -3);
+ ?column? | ?column? 
+----------+----------
+        5 |        3
+(1 row)
+
+DROP TABLE test;
