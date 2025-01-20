@@ -11,6 +11,8 @@ SET @var_string := 'Text',
 SELECT @var_int,
        @var_int + 5,
        @var_null,
+       @var_int IS NULL,
+       @var_null IS NULL,
        @var_string,
        @var_string || ' Concat',
        @var_date,
@@ -204,7 +206,18 @@ SELECT @var_int,
        @var_array,
        (@var_array::anyarray)[2];
 
+-- Expr inside expr
+SELECT @t1 := (@t2 := 1) + @t3 := 4,
+       @t1,
+       @t2,
+       @t3::INT * @t1;
+
+SELECT @t1 := @t2 := @t3 := 1, @t1, @t2, @t3;
+
 -- Cumulative query
+SELECT @t1 := @t1 + (@t2 := @t2 * @t2), @t2 := @t2 + 1
+FROM GENERATE_SERIES(1, 3, 1) num;
+
 SET @cum_int := 0,
     @cum_char := 'Hello';
 
@@ -212,6 +225,12 @@ SELECT @cum_int := @cum_int + num, @cum_char := @cum_char || ', hello again'
 FROM GENERATE_SERIES(1, 5, 1) num;
 
 SELECT @cum_int, @cum_char;
+
+SET @cum_int := 0,
+    @cum_char := 'Hello';
+
+SELECT @cum_int := @cum_int + col_int, @cum_char := @cum_char || ' ' || col_char
+FROM test;
 
 CREATE OR REPLACE FUNCTION overloaded_text_numeric(str TEXT)
     RETURNS TEXT

@@ -2081,6 +2081,10 @@ session_var_name_ref:
                 {
                     $$ = makeColumnRef($1, NIL, @1, yyscanner);
                 }
+            | SESSION_VAR_NAME COLON_EQUALS a_expr %prec IS
+                {
+                    $$ = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
+                }
               /* 
                * Custom operator can be "@" as well but we give bigger precedence to variable
                * If you want to use @ as an operator instead of sesvar you have to add schema or table
@@ -17198,14 +17202,6 @@ target_el:	a_expr AS ColLabel
 					$$->val = (Node *) $1;
 					$$->location = @1;
 				}
-			| SESSION_VAR_NAME COLON_EQUALS a_expr
-                {
-                    $$ = makeNode(ResTarget);
-                    $$->name = $1;
-                    $$->indirection = NIL;
-                    $$->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
-                    $$->location = @3;
-                }
 			| a_expr BareColLabel
 				{
 					$$ = makeNode(ResTarget);
