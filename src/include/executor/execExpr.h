@@ -410,7 +410,6 @@ typedef struct ExprEvalStep
         {
             char	    *sesvarid;	/* char* ID for sesvar */
             Oid			sesvartype;	/* OID of sesvar's datatype */
-            ExprState   *sesvarargstate; /* Prepared dynamic statement for row-level variable assignment */
         }			sesvar;
 
 		/* for EEOP_PARAM_CALLBACK */

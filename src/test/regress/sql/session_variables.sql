@@ -90,6 +90,14 @@ FROM test t1
          JOIN test t2 ON t1.col_char = @char_int AND t2.col_int = @char_int + 1
 LIMIT @char_int - 3;
 
+-- Aggregated functions
+SELECT @min_ci := @b := MIN(col_int) * 2, @max_ci := MAX(col_int) + @b, @b
+FROM test;
+
+SELECT col_char, @sum_ci := SUM(col_int)
+FROM test
+GROUP BY col_char;
+
 -- Transaction
 SET @var := 1;
 BEGIN;

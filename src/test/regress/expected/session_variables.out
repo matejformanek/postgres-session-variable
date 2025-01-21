@@ -131,6 +131,24 @@ LIMIT @char_int - 3;
        5 | 5        |       6 | 5
 (2 rows)
 
+-- Aggregated functions
+SELECT @min_ci := @b := MIN(col_int) * 2, @max_ci := MAX(col_int) + @b, @b
+FROM test;
+ @min_ci | @max_ci | @b 
+---------+---------+----
+      10 |      18 | 10
+(1 row)
+
+SELECT col_char, @sum_ci := SUM(col_int)
+FROM test
+GROUP BY col_char;
+  col_char   | @sum_ci 
+-------------+---------
+ Text Concat |       8
+ 5           |      35
+ Blocker     |      12
+(3 rows)
+
 -- Transaction
 SET @var := 1;
 BEGIN;

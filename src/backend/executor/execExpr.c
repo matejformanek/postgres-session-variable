@@ -1174,9 +1174,11 @@ ExecInitExprRec(Expr *node, ExprState *state,
                 scratch.opcode = EEOP_SESVAREXPR;
                 scratch.d.sesvar.sesvarid = sesvar->name;
                 scratch.d.sesvar.sesvartype = sesvar->resulttype;
-                /* Prepare dynamic statement for row-level variable assignment */
-                scratch.d.sesvar.sesvarargstate = ExecInitExpr((Expr *) sesvar->arg, NULL);
                 
+                ExecInitExprRec((Expr *) sesvar->arg, state,
+                                resv,
+                                resnull);
+
                 ExprEvalPushStep(state, &scratch);
                 break;
             }

@@ -1111,8 +1111,10 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
             bool typByVal;
             Oid collid;
 
-            /* Evaluate arg */
-            arg_value = ExecEvalExpr(op->d.sesvar.sesvarargstate, econtext, &arg_isnull);
+            /* Arg was evaluated in previous step */
+            ExprEvalStep *hold = op - 1;
+            arg_value = *hold->resvalue;
+            arg_isnull = *hold->resnull;
             
             /* Get necessarily data for saving variable */
             typeOid = op->d.sesvar.sesvartype;
