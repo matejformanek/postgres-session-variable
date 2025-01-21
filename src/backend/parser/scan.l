@@ -176,6 +176,7 @@ extern void core_yyset_column(int column_no, yyscan_t yyscanner);
  *  <xb> bit string literal
  *  <xc> extended C-style comments
  *  <xd> delimited identifiers (double-quoted identifiers)
+ *  <xdsv> delimited session variables (@ + double-quoted identifiers)
  *  <xh> hexadecimal byte string
  *  <xq> standard quoted strings
  *  <xqs> quote stop (detect continued strings)
@@ -192,6 +193,7 @@ extern void core_yyset_column(int column_no, yyscan_t yyscanner);
 %x xb
 %x xc
 %x xd
+%x xdsv
 %x xh
 %x xq
 %x xqs
@@ -307,6 +309,7 @@ dolqinside		[^$]+
  */
 dquote			\"
 xdstart			{dquote}
+xdsvstart		@{dquote}
 xdstop			{dquote}
 xddouble		{dquote}{dquote}
 xdinside		[^"]+
@@ -806,6 +809,11 @@ other			.
 					BEGIN(xd);
 					startlit();
 				}
+{xdsvstart}		{
+					SET_YYLLOC();
+					BEGIN(xdsv);
+					startlit();
+				}
 {xuistart}		{
 					SET_YYLLOC();
 					BEGIN(xui);
@@ -823,6 +831,19 @@ other			.
 					yylval->str = ident;
 					return IDENT;
 				}
+<xdsv>{dquote}	{
+					char	   *sesvar;
+
+					BEGIN(INITIAL);
+					if (yyextra->literallen == 0)
+						yyerror("zero-length delimited session variable");
+					sesvar = litbufdup(yyscanner);
+					if (yyextra->literallen >= NAMEDATALEN)
+						truncate_identifier(sesvar, yyextra->literallen, true);
+					yylval->str = psprintf("@%s", sesvar);
+					pfree(sesvar);
+					return SESSION_VAR_NAME;
+				}
 <xui>{dquote}	{
 					BEGIN(INITIAL);
 					if (yyextra->literallen == 0)
@@ -831,13 +852,13 @@ other			.
 					yylval->str = litbufdup(yyscanner);
 					return UIDENT;
 				}
-<xd,xui>{xddouble}	{
+<xd,xui,xdsv>{xddouble}	{
 					addlitchar('"', yyscanner);
 				}
-<xd,xui>{xdinside}	{
+<xd,xui,xdsv>{xdinside}	{
 					addlit(yytext, yyleng, yyscanner);
 				}
-<xd,xui><<EOF>>		{ yyerror("unterminated quoted identifier"); }
+<xd,xui,xdsv><<EOF>>		{ yyerror("unterminated quoted identifier"); }
 
 {xufailed}	{
 					char	   *ident;
@@ -1112,7 +1133,7 @@ other			.
 {session_var}   {
 					SET_YYLLOC();
 
-                    yylval->str = pstrdup(yytext);
+                    yylval->str = downcase_truncate_identifier(yytext, yyleng, true);
                     return SESSION_VAR_NAME;
                 }
 

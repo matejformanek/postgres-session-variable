@@ -416,4 +416,23 @@ SELECT @(-5), @(SELECT -3);
         5 |        3
 (1 row)
 
+-- Un/Quoted names
+SET @TEST := 2, @test := 5, @"Test" := 3;
+SELECT @test, @TEST, @"Test";
+ @test | @test | @Test 
+-------+-------+-------
+     5 |     5 |     3
+(1 row)
+
+SELECT @"tEST";
+ERROR:  session variable "@tEST" does not exist
+SELECT @"test".col_int
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+ ?column? 
+----------
+       11
+(1 row)
+
 DROP TABLE test;

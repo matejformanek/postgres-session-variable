@@ -295,4 +295,17 @@ LIMIT 1;
 
 SELECT @(-5), @(SELECT -3);
 
+-- Un/Quoted names
+
+SET @TEST := 2, @test := 5, @"Test" := 3;
+
+SELECT @test, @TEST, @"Test";
+
+SELECT @"tEST";
+
+SELECT @"test".col_int
+FROM test
+WHERE col_int < 0
+LIMIT 1;
+
 DROP TABLE test;
