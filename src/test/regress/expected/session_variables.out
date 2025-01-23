@@ -399,58 +399,14 @@ NOTICE:  10.5 Append numeric
 NOTICE:  Ahoj Append text
 DROP FUNCTION overloaded_text_numeric(str TEXT);
 DROP FUNCTION overloaded_text_numeric(str NUMERIC);
--- Custom operator "@" X SESVAR
-INSERT INTO test VALUES (-11, 'Negative value');
-SET @col_int := -9;
-SELECT @col_int
-FROM test
-LIMIT 1;
- @col_int 
-----------
-       -9
-(1 row)
-
-SELECT @test.col_int
-FROM test
-WHERE col_int < 0
-LIMIT 1;
- ?column? 
-----------
-       11
-(1 row)
-
-SELECT @(col_int)
-FROM test
-WHERE col_int < 0
-LIMIT 1;
- ?column? 
-----------
-       11
-(1 row)
-
-SELECT @(-5), @(SELECT -3);
- ?column? | ?column? 
-----------+----------
-        5 |        3
-(1 row)
-
 -- Un/Quoted names
-SET @TEST := 2, @test := 5, @"Test" := 3;
-SELECT @test, @TEST, @"Test";
- @test | @test | @Test 
--------+-------+-------
-     5 |     5 |     3
+SET @TEST := 2, @test := 5, @"Test" := 3, @"Te.St" := 4;
+SELECT @test, @TEST, @"Test", @"Te.St";
+ @test | @test | @Test | @Te.St 
+-------+-------+-------+--------
+     5 |     5 |     3 |      4
 (1 row)
 
 SELECT @"tEST";
 ERROR:  session variable "@tEST" does not exist
-SELECT @"test".col_int
-FROM test
-WHERE col_int < 0
-LIMIT 1;
- ?column? 
-----------
-       11
-(1 row)
-
 DROP TABLE test;

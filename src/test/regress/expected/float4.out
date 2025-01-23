@@ -294,17 +294,6 @@ SELECT * FROM FLOAT4_TBL;
  1.2345679e-20
 (5 rows)
 
--- test the unary float4abs operator
-SELECT f.f1, @f.f1 AS abs_f1 FROM FLOAT4_TBL f;
-      f1       |    abs_f1     
----------------+---------------
-             0 |             0
-        1004.3 |        1004.3
-        -34.84 |         34.84
- 1.2345679e+20 | 1.2345679e+20
- 1.2345679e-20 | 1.2345679e-20
-(5 rows)
-
 UPDATE FLOAT4_TBL
    SET f1 = FLOAT4_TBL.f1 * '-1'
    WHERE FLOAT4_TBL.f1 > '0.0';

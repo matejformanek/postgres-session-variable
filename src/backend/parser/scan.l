@@ -381,8 +381,8 @@ not_equals		"!="
  * rule for "operator"!
  */
 self			[,()\[\].;\:\+\-\*\/\%\^\<\>\=]
-op_chars		[\~\!\@\#\^\&\|\`\?\+\-\*\/\%\<\>\=]
-operator		{op_chars}+
+op_chars		[\~\!\#\^\&\|\`\?\+\-\*\/\%\<\>\=]
+operator		({op_chars}({op_chars}|@)*|@({op_chars}|@)+)
 
 /*
  * Numbers

@@ -281,39 +281,12 @@ DROP FUNCTION overloaded_text_numeric(str TEXT);
 
 DROP FUNCTION overloaded_text_numeric(str NUMERIC);
 
--- Custom operator "@" X SESVAR
-
-INSERT INTO test VALUES (-11, 'Negative value');
-
-SET @col_int := -9;
-
-SELECT @col_int
-FROM test
-LIMIT 1;
-
-SELECT @test.col_int
-FROM test
-WHERE col_int < 0
-LIMIT 1;
-
-SELECT @(col_int)
-FROM test
-WHERE col_int < 0
-LIMIT 1;
-
-SELECT @(-5), @(SELECT -3);
-
 -- Un/Quoted names
 
-SET @TEST := 2, @test := 5, @"Test" := 3;
+SET @TEST := 2, @test := 5, @"Test" := 3, @"Te.St" := 4;
 
-SELECT @test, @TEST, @"Test";
+SELECT @test, @TEST, @"Test", @"Te.St";
 
 SELECT @"tEST";
-
-SELECT @"test".col_int
-FROM test
-WHERE col_int < 0
-LIMIT 1;
 
 DROP TABLE test;

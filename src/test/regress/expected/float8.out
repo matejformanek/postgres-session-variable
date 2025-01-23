@@ -279,18 +279,6 @@ SELECT f.f1 ^ '2.0' AS square_f1
  1008618.4899999999
 (1 row)
 
--- absolute value
-SELECT f.f1, @f.f1 AS abs_f1
-   FROM FLOAT8_TBL f;
-          f1          |        abs_f1        
-----------------------+----------------------
-                    0 |                    0
-               1004.3 |               1004.3
-               -34.84 |                34.84
- 1.2345678901234e+200 | 1.2345678901234e+200
- 1.2345678901234e-200 | 1.2345678901234e-200
-(5 rows)
-
 -- truncate
 SELECT f.f1, trunc(f.f1) AS trunc_f1
    FROM FLOAT8_TBL f;
