@@ -1,5 +1,5 @@
 -- Set variable
-SET @var_int := 53;
+SET @var_int := (SELECT 53);
 
 -- Set multiple variables at once of different types
 SET @var_string := 'Text',

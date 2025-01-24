@@ -678,26 +678,14 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
 static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt)
 {
     Query	   *qry = makeNode(Query);
-    ListCell *tl;
-    AttrNumber resno = 1;
 
     qry->commandType = CMD_SET_SESSION_VARIABLE;
     pstate->p_is_insert = false;
 
-    qry->targetList = NIL;
-    foreach(tl, stmt->variables)
-    {
-        ResTarget *var = (ResTarget *) lfirst(tl);
-        TargetEntry *tle;
+    qry->targetList = transformTargetList(pstate, stmt->variables,
+                                          EXPR_KIND_SELECT_TARGET);
 
-        tle = makeTargetEntry((Expr *) transformExpr(pstate, var->val, EXPR_KIND_VALUES_SINGLE),
-                              resno++,
-                              var->name,
-                              false);
-
-        qry->targetList = lappend(qry->targetList, tle);
-    }
-
+    qry->hasSubLinks = pstate->p_hasSubLinks;
     qry->jointree = makeNode(FromExpr);
     qry->jointree->quals = NULL;
     qry->jointree->fromlist = NIL;

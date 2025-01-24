@@ -7104,6 +7104,10 @@ make_project_set(List *tlist,
 	return node;
 }
 
+/*
+ * make_modifysessionvariable
+ *	  Build a ModifySessionVariable plan node
+ */
 static ModifySessionVariable *
 make_modifysessionvariable(PlannerInfo *root, Plan *subplan,
                            CmdType operation)
