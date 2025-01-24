@@ -115,6 +115,7 @@ static void ScanQueryForLocks(Query *parsetree, bool acquire);
 static bool ScanQueryWalker(Node *node, bool *acquire);
 static TupleDesc PlanCacheComputeResultDesc(List *stmt_list);
 static void PlanCacheRelCallback(Datum arg, Oid relid);
+static void PlanCacheSesvarCallback(const char *name);
 static void PlanCacheObjectCallback(Datum arg, int cacheid, uint32 hashvalue);
 static void PlanCacheSysCallback(Datum arg, int cacheid, uint32 hashvalue);
 
@@ -162,6 +163,7 @@ InitPlanCache(void)
 	CacheRegisterSyscacheCallback(AMOPOPID, PlanCacheSysCallback, (Datum) 0);
 	CacheRegisterSyscacheCallback(FOREIGNSERVEROID, PlanCacheSysCallback, (Datum) 0);
 	CacheRegisterSyscacheCallback(FOREIGNDATAWRAPPEROID, PlanCacheSysCallback, (Datum) 0);
+    CacheRegisterSesvarcacheCallback(PlanCacheSesvarCallback);
 }
 
 /*
@@ -1982,8 +1984,8 @@ PlanCacheComputeResultDesc(List *stmt_list)
  *
  * Invalidate all plans mentioning the given session variable
  */
-void
-PlanCacheSesVarInvalidation(const char *name){
+static void
+PlanCacheSesvarCallback(const char *name){
     dlist_iter	iter;
 
     dlist_foreach(iter, &saved_plan_list)

@@ -37,7 +37,6 @@
 #include "utils/dynahash.h"
 #include "utils/fmgrprotos.h"
 #include "utils/guc_hooks.h"
-#include "utils/plancache.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
@@ -52,6 +51,7 @@
 #include "executor/executor.h"
 #include "utils/datum.h"
 #include "utils/lsyscache.h"
+#include "utils/inval.h"
 
 void initSessionVariables(void);
 
@@ -190,7 +190,7 @@ saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
     if (exists) {
         /* Invalidate cached plans if we are changing data type */
         if (((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
-            PlanCacheSesVarInvalidation(result->key);
+            InvalidateSesvarCache(result->key);
 
         oldExpr = result->expr;
     }
