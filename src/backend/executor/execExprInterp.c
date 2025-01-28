@@ -1109,7 +1109,6 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
             Oid typeOid;
             int16 typLen;
             bool typByVal;
-            Oid collid;
 
             /* Arg was evaluated in previous step */
             ExprEvalStep *hold = op - 1;
@@ -1119,13 +1118,12 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
             /* Get necessarily data for saving variable */
             typeOid = op->d.sesvar.sesvartype;
             get_typlenbyval(typeOid, &typLen, &typByVal);
-            collid = get_typcollation(typeOid);
             
             /* Set the new value to session variable */
             setSessionVariable(op->d.sesvar.sesvarid,
                                makeConstSessionVariable(typeOid,
                                                         -1,
-                                                        collid,
+                                                        op->d.sesvar.sesvarcollid,
                                                         typByVal,
                                                         typLen,
                                                         arg_isnull,

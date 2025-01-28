@@ -1174,6 +1174,7 @@ ExecInitExprRec(Expr *node, ExprState *state,
                 scratch.opcode = EEOP_SESVAREXPR;
                 scratch.d.sesvar.sesvarid = sesvar->name;
                 scratch.d.sesvar.sesvartype = sesvar->resulttype;
+                scratch.d.sesvar.sesvarcollid = sesvar->collid;
                 
                 ExecInitExprRec((Expr *) sesvar->arg, state,
                                 resv,

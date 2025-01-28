@@ -4,10 +4,12 @@ SET @var_int := (SELECT 53);
 SET @var_string := 'Text',
     @var_null := NULL,
     @var_date := '2024-05-01',
-    @var_array := ARRAY [1,5,3,4];
+    @var_array := ARRAY [1,5,3,4],
+    @var_int_sci := 7e-5;
 -- Selection plus operations with values
 SELECT @var_int,
        @var_int + 5,
+       @var_int_sci,
        @var_null,
        @var_int IS NULL,
        @var_null IS NULL,
@@ -17,19 +19,21 @@ SELECT @var_int,
        @var_date::DATE + '1 MONTH'::INTERVAL,
        @var_array,
        (@var_array::anyarray)[2];
- @var_int | ?column? | @var_null | ?column? | ?column? | @var_string |  ?column?   | @var_date  |         ?column?         | @var_array | @var_array 
-----------+----------+-----------+----------+----------+-------------+-------------+------------+--------------------------+------------+------------
-       53 |       58 |           | f        | t        | Text        | Text Concat | 2024-05-01 | Sat Jun 01 00:00:00 2024 | {1,5,3,4}  |          5
+ @var_int | ?column? | @var_int_sci | @var_null | ?column? | ?column? | @var_string |  ?column?   | @var_date  |         ?column?         | @var_array | @var_array 
+----------+----------+--------------+-----------+----------+----------+-------------+-------------+------------+--------------------------+------------+------------
+       53 |       58 |      0.00007 |           | f        | t        | Text        | Text Concat | 2024-05-01 | Sat Jun 01 00:00:00 2024 | {1,5,3,4}  |          5
 (1 row)
 
 -- Check that the variable values stayed the same
 SELECT @var_string,
+       @var_int,
+       @var_int_sci,
        @var_null,
        @var_date,
        @var_array;
- @var_string | @var_null | @var_date  | @var_array 
--------------+-----------+------------+------------
- Text        |           | 2024-05-01 | {1,5,3,4}
+ @var_string | @var_int | @var_int_sci | @var_null | @var_date  | @var_array 
+-------------+----------+--------------+-----------+------------+------------
+ Text        |       53 |      0.00007 |           | 2024-05-01 | {1,5,3,4}
 (1 row)
 
 -- Number by default but convertible to text
@@ -69,6 +73,8 @@ SELECT @var;
    29
 (1 row)
 
+SET @sa := @sa + 1; -- should fail
+ERROR:  session variable "@sa" does not exist
 -- Assigning from variables initiated earlier in the chain
 -- Have to specify @created_int::INT here due to the parsing order, even though that at the point of evaluating
 -- the last row we have the information that the @created_int sesvar is INT -> BUT when we firstly parsed Expr "*" 
@@ -148,6 +154,12 @@ GROUP BY col_char;
  5           |      35
  Blocker     |      12
 (3 rows)
+
+SELECT @sum_ci;
+ @sum_ci 
+---------
+      12
+(1 row)
 
 -- Transaction
 SET @var := 1;
@@ -260,6 +272,29 @@ SELECT @pl;
 (1 row)
 
 DROP PROCEDURE set_session_variables_param;
+-- Make sure SESVAR is given to the argument by value to not access freed pointer later on
+SET @plpgsql_sv_v := 'abc';
+CREATE FUNCTION ffunc()
+    RETURNS text AS $$
+BEGIN
+    RETURN gfunc(@plpgsql_sv_v);
+END
+$$ LANGUAGE plpgsql;
+CREATE FUNCTION gfunc(t text)
+    RETURNS text AS $$
+BEGIN
+    SET @plpgsql_sv_v := 'BOOM!';
+    RETURN t;
+END;
+$$ LANGUAGE plpgsql;
+SELECT ffunc();
+ ffunc 
+-------
+ abc
+(1 row)
+
+DROP FUNCTION gfunc;
+DROP FUNCTION ffunc;
 -- SELECT simple assign
 SELECT @var_int := 53;
  @var_int 
@@ -289,6 +324,44 @@ SELECT @var_int,
  @var_int | ?column? | @var_null | @var_string |  ?column?   | @var_date  |         ?column?         | @var_array | @var_array 
 ----------+----------+-----------+-------------+-------------+------------+--------------------------+------------+------------
        53 |       58 |           | Text        | Text Concat | 2024-05-01 | Sat Jun 01 00:00:00 2024 | {1,5,3,4}  |          5
+(1 row)
+
+SELECT @a := 10,
+       @b := 2,
+       @a > @b,
+       @a := '10',
+       @b := 2,
+       @a > @b,
+       @a := 2,
+       @b := 10,
+       @a > @b,
+       @a := '2',
+       @b := '10',
+       @a::INT > @b;
+ @a | @b | ?column? | @a | @b | ?column? | @a | @b | ?column? | @a | @b | ?column? 
+----+----+----------+----+----+----------+----+----+----------+----+----+----------
+ 10 |  2 | t        | 10 |  2 | t        |  2 | 10 | f        | 2  | 10 | f
+(1 row)
+
+-- Collation
+SET @txt1 := 'test', @"TXT" := 'TEST';
+SELECT @txt1 < @"TXT"; -- should fail
+ERROR:  could not determine which collation to use for string comparison
+HINT:  Use the COLLATE clause to set the collation explicitly.
+SELECT @txt1 < @"TXT" COLLATE "POSIX";
+ ?column? 
+----------
+ f
+(1 row)
+
+SELECT @txt1 < @"TXT"; -- should fail
+ERROR:  could not determine which collation to use for string comparison
+HINT:  Use the COLLATE clause to set the collation explicitly.
+SET @"TXT" := 'TEST' COLLATE "POSIX";
+SELECT @txt1 < @"TXT";
+ ?column? 
+----------
+ f
 (1 row)
 
 -- Expr inside expr
@@ -407,6 +480,17 @@ SELECT @test, @TEST, @"Test", @"Te.St";
      5 |     5 |     3 |      4
 (1 row)
 
-SELECT @"tEST";
+SELECT @"tEST"; -- should fail
 ERROR:  session variable "@tEST" does not exist
+SET "@t" := 5; -- should fail
+ERROR:  syntax error at or near ":="
+LINE 1: SET "@t" := 5;
+                 ^
+SET @"@t" := 5;
+SELECT @"@t";
+ @@t 
+-----
+   5
+(1 row)
+
 DROP TABLE test;

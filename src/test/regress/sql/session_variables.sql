@@ -5,11 +5,13 @@ SET @var_int := (SELECT 53);
 SET @var_string := 'Text',
     @var_null := NULL,
     @var_date := '2024-05-01',
-    @var_array := ARRAY [1,5,3,4];
+    @var_array := ARRAY [1,5,3,4],
+    @var_int_sci := 7e-5;
 
 -- Selection plus operations with values
 SELECT @var_int,
        @var_int + 5,
+       @var_int_sci,
        @var_null,
        @var_int IS NULL,
        @var_null IS NULL,
@@ -22,6 +24,8 @@ SELECT @var_int,
 
 -- Check that the variable values stayed the same
 SELECT @var_string,
+       @var_int,
+       @var_int_sci,
        @var_null,
        @var_date,
        @var_array;
@@ -41,6 +45,8 @@ SET @var := 5;
 SET @var := (@var * @var) + @var - 1;
 
 SELECT @var;
+
+SET @sa := @sa + 1; -- should fail
 
 -- Assigning from variables initiated earlier in the chain
 
@@ -97,6 +103,8 @@ FROM test;
 SELECT col_char, @sum_ci := SUM(col_int)
 FROM test
 GROUP BY col_char;
+
+SELECT @sum_ci;
 
 -- Transaction
 SET @var := 1;
@@ -195,6 +203,29 @@ SELECT @pl;
 
 DROP PROCEDURE set_session_variables_param;
 
+-- Make sure SESVAR is given to the argument by value to not access freed pointer later on
+SET @plpgsql_sv_v := 'abc';
+
+CREATE FUNCTION ffunc()
+    RETURNS text AS $$
+BEGIN
+    RETURN gfunc(@plpgsql_sv_v);
+END
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION gfunc(t text)
+    RETURNS text AS $$
+BEGIN
+    SET @plpgsql_sv_v := 'BOOM!';
+    RETURN t;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT ffunc();
+
+DROP FUNCTION gfunc;
+DROP FUNCTION ffunc;
+
 -- SELECT simple assign
 SELECT @var_int := 53;
 
@@ -213,6 +244,32 @@ SELECT @var_int,
        @var_date::DATE + '1 MONTH'::INTERVAL,
        @var_array,
        (@var_array::anyarray)[2];
+
+SELECT @a := 10,
+       @b := 2,
+       @a > @b,
+       @a := '10',
+       @b := 2,
+       @a > @b,
+       @a := 2,
+       @b := 10,
+       @a > @b,
+       @a := '2',
+       @b := '10',
+       @a::INT > @b;
+
+-- Collation
+SET @txt1 := 'test', @"TXT" := 'TEST';
+
+SELECT @txt1 < @"TXT"; -- should fail
+
+SELECT @txt1 < @"TXT" COLLATE "POSIX";
+
+SELECT @txt1 < @"TXT"; -- should fail
+
+SET @"TXT" := 'TEST' COLLATE "POSIX";
+
+SELECT @txt1 < @"TXT";
 
 -- Expr inside expr
 SELECT @t1 := (@t2 := 1) + @t3 := 4,
@@ -287,6 +344,12 @@ SET @TEST := 2, @test := 5, @"Test" := 3, @"Te.St" := 4;
 
 SELECT @test, @TEST, @"Test", @"Te.St";
 
-SELECT @"tEST";
+SELECT @"tEST"; -- should fail
+
+SET "@t" := 5; -- should fail
+
+SET @"@t" := 5;
+
+SELECT @"@t";
 
 DROP TABLE test;

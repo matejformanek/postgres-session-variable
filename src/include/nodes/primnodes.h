@@ -1399,6 +1399,8 @@ typedef struct SesVarExpr
     Node        *arg;
     /* PG_TYPE OID of result value */
     Oid			resulttype pg_node_attr(query_jumble_ignore);
+    /* OID of collation, or InvalidOid if none */
+    Oid			collid pg_node_attr(query_jumble_ignore);
     /* session variable id = @var */
     char        *name;
     /* token location, or -1 if unknown */

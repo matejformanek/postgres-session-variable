@@ -408,8 +408,9 @@ typedef struct ExprEvalStep
         /* for EEOP_PARAM_SESVAR */
         struct
         {
-            char	    *sesvarid;	/* char* ID for sesvar */
-            Oid			sesvartype;	/* OID of sesvar's datatype */
+            char	    *sesvarid;	    /* char* ID for sesvar */
+            Oid			 sesvartype;	/* OID of sesvar's datatype */
+            Oid			 sesvarcollid;	/* OID of sesvar's collation */
         }			sesvar;
 
 		/* for EEOP_PARAM_CALLBACK */
