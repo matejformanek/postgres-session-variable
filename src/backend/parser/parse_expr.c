@@ -670,8 +670,18 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 													cref->location);
 				}
 
-                if(node == NULL && colname[0] == '@')
+                /* The reference is a SESSION VARIABLE */
+                if(node == NULL && colname[0] == '@') {
+                    sessionVariable *ref;
                     node = (Node *) getParamSessionVariable(colname);
+
+                    /* If the sesvar was previously mentioned make sure we get the most actual type */
+                    ref = (sessionVariable *) hash_search(pstate->sesvar_changes, colname, HASH_FIND, NULL);
+                    if(ref) {
+                        ((Param *) node)->paramtype = ((Param *) ref->expr)->paramtype;
+                        ((Param *) node)->paramcollid = ((Param *) ref->expr)->paramcollid;
+                    }
+                }
 				break;
 			}
 		case 2:
@@ -1384,11 +1394,27 @@ static Node *
 transformAExprSessionVariable(ParseState *pstate, A_Expr *a)
 {
     SesVarExpr *result = makeNode(SesVarExpr);
+    sessionVariable *ref;
+    bool found;
+    
     result->arg = transformExprRecurse(pstate, a->rexpr);
     result->resulttype = exprType(result->arg);
     result->collid = exprCollation(result->arg);
     result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
     result->location = a->location;
+
+    /* Save the possibly altered type to the pstate->sesvar_changes */
+    ref = (sessionVariable *) hash_search(pstate->sesvar_changes, result->name, HASH_ENTER_NULL, &found);
+    if(found) {
+        ((Param *) ref->expr)->paramtype = result->resulttype;
+        ((Param *) ref->expr)->paramcollid = result->collid;
+    } else {
+        Param *param = makeNode(Param);
+        param->paramtype = result->resulttype;
+        param->paramcollid = result->collid;
+        
+        ref->expr = (Node *) param;
+    }
     
     return (Node *) result;
 }

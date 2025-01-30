@@ -19,12 +19,6 @@
 #include "nodes/params.h"
 #include "tcop/dest.h"
 
-#define VARIABLE_SIZE (NAMEDATALEN + 1)
-
-typedef struct sessionVariable {
-    char key[VARIABLE_SIZE];
-    Node *expr;
-} sessionVariable;
 
 extern void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
 

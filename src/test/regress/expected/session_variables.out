@@ -76,12 +76,13 @@ SELECT @var;
 SET @sa := @sa + 1; -- should fail
 ERROR:  session variable "@sa" does not exist
 -- Assigning from variables initiated earlier in the chain
--- Have to specify @created_int::INT here due to the parsing order, even though that at the point of evaluating
--- the last row we have the information that the @created_int sesvar is INT -> BUT when we firstly parsed Expr "*" 
--- we didn't have this information yet thus giving us unknown * unknown ERROR
+-- Thanks to the pstate->sesvar_changes we don't have to add typecast to
+-- @char_int * @created_int previously gained expr types will be assigned to them ->
+-- this way parser knows @created_int is an INT even though it has not yet been saved in memory 
+-- (the variable is still "not existing" at this point -> if it crashes it won't be saved logically). 
 SET @char_int := '5',
     @created_int := @char_int + 3,
-    @multiple := @char_int * @created_int::INT;
+    @multiple := @char_int * @created_int;
 SELECT @char_int,
        @created_int,
        @multiple;
@@ -92,11 +93,43 @@ SELECT @char_int,
 
 SELECT @a := '5',
        @b := @a + 3,
-       @c := @a * @b::INT;
+       @c := @a * @b;
  @a | @b | @c 
 ----+----+----
  5  |  8 | 40
 (1 row)
+
+-- Remember inline types
+SELECT @dat := '2024-01-01'::DATE,
+       @intv := '1 MONTH'::INTERVAL,
+       @res := @dat + @intv;
+    @dat    |  @intv  |           @res           
+------------+---------+--------------------------
+ 01-01-2024 | @ 1 mon | Thu Feb 01 00:00:00 2024
+(1 row)
+
+-- Moreover to sesvar inline type changes
+SET @a := 0;
+-- The col #3 must not give parser return type INT because we know it will be changed in col before 
+SELECT @a, @a := 'hello', @a, @a := 3, @a, @a := 'hello again';
+ @a |  @a   |  @a   | @a | @a |     @a      
+----+-------+-------+----+----+-------------
+  0 | hello | hello |  3 |  3 | hello again
+(1 row)
+
+SET @a := 0;
+SELECT @a, @a := 'hello', @a, @a := 3, @a, @a := 'hello again' -- should fail;
+FROM GENERATE_SERIES(1, 3, 1) num;
+ERROR:  invalid input syntax for type integer: "hello again"
+SET @a := 0;
+SELECT @a, @a := 'hello', @a, @a := 3, @a
+FROM GENERATE_SERIES(1, 3, 1) num;
+ @a |  @a   |  @a   | @a | @a 
+----+-------+-------+----+----
+  0 | hello | hello |  3 |  3
+  3 | hello | hello |  3 |  3
+  3 | hello | hello |  3 |  3
+(3 rows)
 
 -- DDL
 CREATE TABLE test
@@ -368,10 +401,10 @@ SELECT @txt1 < @"TXT";
 SELECT @t1 := (@t2 := 1) + @t3 := 4,
        @t1,
        @t2,
-       @t3::INT * @t1;
+       @t3 * @t1;
  @t1 | @t1 | @t2 | ?column? 
 -----+-----+-----+----------
-   5 | 5   | 1   |       20
+   5 |   5 |   1 |       20
 (1 row)
 
 SELECT @t1 := @t2 := @t3 := 1, @t1, @t2, @t3;

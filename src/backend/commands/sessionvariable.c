@@ -212,7 +212,7 @@ initSessionVariables() {
 
     Assert(CurrentSession != NULL);
 
-    ctl.keysize = VARIABLE_SIZE;
+    ctl.keysize = SESVAR_SIZE;
     ctl.entrysize = sizeof(sessionVariable);
     ctl.hcxt = TopMemoryContext;
 

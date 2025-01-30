@@ -50,12 +50,13 @@ SET @sa := @sa + 1; -- should fail
 
 -- Assigning from variables initiated earlier in the chain
 
--- Have to specify @created_int::INT here due to the parsing order, even though that at the point of evaluating
--- the last row we have the information that the @created_int sesvar is INT -> BUT when we firstly parsed Expr "*" 
--- we didn't have this information yet thus giving us unknown * unknown ERROR
+-- Thanks to the pstate->sesvar_changes we don't have to add typecast to
+-- @char_int * @created_int previously gained expr types will be assigned to them ->
+-- this way parser knows @created_int is an INT even though it has not yet been saved in memory 
+-- (the variable is still "not existing" at this point -> if it crashes it won't be saved logically). 
 SET @char_int := '5',
     @created_int := @char_int + 3,
-    @multiple := @char_int * @created_int::INT;
+    @multiple := @char_int * @created_int;
 
 SELECT @char_int,
        @created_int,
@@ -63,7 +64,28 @@ SELECT @char_int,
 
 SELECT @a := '5',
        @b := @a + 3,
-       @c := @a * @b::INT;
+       @c := @a * @b;
+
+-- Remember inline types
+SELECT @dat := '2024-01-01'::DATE,
+       @intv := '1 MONTH'::INTERVAL,
+       @res := @dat + @intv;
+
+-- Moreover to sesvar inline type changes
+SET @a := 0;
+
+-- The col #3 must not give parser return type INT because we know it will be changed in col before 
+SELECT @a, @a := 'hello', @a, @a := 3, @a, @a := 'hello again';
+
+SET @a := 0;
+
+SELECT @a, @a := 'hello', @a, @a := 3, @a, @a := 'hello again' -- should fail;
+FROM GENERATE_SERIES(1, 3, 1) num;
+
+SET @a := 0;
+
+SELECT @a, @a := 'hello', @a, @a := 3, @a
+FROM GENERATE_SERIES(1, 3, 1) num;
 
 -- DDL
 CREATE TABLE test
@@ -275,7 +297,7 @@ SELECT @txt1 < @"TXT";
 SELECT @t1 := (@t2 := 1) + @t3 := 4,
        @t1,
        @t2,
-       @t3::INT * @t1;
+       @t3 * @t1;
 
 SELECT @t1 := @t2 := @t3 := 1, @t1, @t2, @t3;
 

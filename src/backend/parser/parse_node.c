@@ -39,6 +39,7 @@ ParseState *
 make_parsestate(ParseState *parentParseState)
 {
 	ParseState *pstate;
+    HASHCTL ctl;
 
 	pstate = palloc0(sizeof(ParseState));
 
@@ -48,6 +49,13 @@ make_parsestate(ParseState *parentParseState)
 	pstate->p_next_resno = 1;
 	pstate->p_resolve_unknowns = true;
 
+    ctl.keysize = SESVAR_SIZE;
+    ctl.entrysize = sizeof(sessionVariable);
+    ctl.hcxt = CurrentMemoryContext;
+
+    pstate->sesvar_changes = hash_create("Session variable type changes", 16, &ctl,
+                                         HASH_ELEM | HASH_CONTEXT | HASH_STRINGS);
+    
 	if (parentParseState)
 	{
 		pstate->p_sourcetext = parentParseState->p_sourcetext;
@@ -85,6 +93,9 @@ free_parsestate(ParseState *pstate)
 	if (pstate->p_target_relation != NULL)
 		table_close(pstate->p_target_relation, NoLock);
 
+    hash_destroy(pstate->sesvar_changes);
+    pstate->sesvar_changes = NULL;
+    
 	pfree(pstate);
 }
 
