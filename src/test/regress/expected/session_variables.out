@@ -526,4 +526,54 @@ SELECT @"@t";
    5
 (1 row)
 
+-- SELECT ... INTO SESVAR
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+    END;
+$$;
+NOTICE:  5s 5.5 3 TEST test
+-- test correct type and collation
+SELECT @a, @b, @b * 2, @t1, @t2, @t1 < @t2;
+ @a | @b  | ?column? | @t1  | @t2  | ?column? 
+----+-----+----------+------+------+----------
+ 5s | 5.5 |     11.0 | TEST | test | t
+(1 row)
+
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO a, @a, @b
+        FROM test;
+    END;
+$$;
+SELECT @a, @b;
+ @a | @b 
+----+----
+  5 | 5
+(1 row)
+
+DO -- should fail
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO STRICT a, @x, @y
+        FROM test;
+    END;
+$$;
+ERROR:  query returned more than one row
+HINT:  Make sure the query returns a single row, or use LIMIT 1.
+CONTEXT:  PL/pgSQL function inline_code_block line 5 at SQL statement
+SELECT @x, @y;  -- should fail
+ERROR:  session variable "@y" does not exist
 DROP TABLE test;

@@ -374,4 +374,46 @@ SET @"@t" := 5;
 
 SELECT @"@t";
 
+-- SELECT ... INTO SESVAR
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+    END;
+$$;
+
+-- test correct type and collation
+SELECT @a, @b, @b * 2, @t1, @t2, @t1 < @t2;
+
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO a, @a, @b
+        FROM test;
+    END;
+$$;
+
+SELECT @a, @b;
+
+
+DO -- should fail
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO STRICT a, @x, @y
+        FROM test;
+    END;
+$$;
+
+SELECT @x, @y;  -- should fail
+
 DROP TABLE test;

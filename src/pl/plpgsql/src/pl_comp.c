@@ -1111,6 +1111,14 @@ plpgsql_post_column_ref(ParseState *pstate, ColumnRef *cref, Node *var)
 	if (expr->func->resolve_option == PLPGSQL_RESOLVE_COLUMN && var != NULL)
 		return NULL;			/* there's a table column, prefer that */
 
+    /*
+     * Ignore if ambiguity comes from SESVAR coliding with plpgsql variable
+     * This can happen when assigning to SESVAR with SELECT INTO -> in this case we have to 
+     * act like SESVAR is plpgsql var ==> meaning both of these references are same
+     **/
+    if (NameListToString(cref->fields)[0] == '@')
+        return NULL;
+
 	/*
 	 * If we find a record/row variable but can't match a field name, throw
 	 * error if there was no core resolution for the ColumnRef either.  In
