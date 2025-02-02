@@ -96,7 +96,9 @@ static WindowClause *findWindowClause(List *wclist, const char *name);
 static Node *transformFrameOffset(ParseState *pstate, int frameOptions,
 								  Oid rangeopfamily, Oid rangeopcintype, Oid *inRangeFunc,
 								  Node *clause);
-
+static TargetEntry * transformSesVarEntry(ParseState *pstate, List **tlist, TargetEntry *tle,
+                                          ParseExprKind exprKind);
+static bool check_nested_sesvars_walker(Node *node, void *context);
 
 /*
  * transformFromClause -
@@ -2343,6 +2345,52 @@ flatten_grouping_sets(Node *expr, bool toplevel, bool *hasGroupingSets)
 }
 
 /*
+ * GROUP/SORT BY clause can NOT contain nested SESVAR expressions due to the 
+ * unpredictable results that it would return. Because the value assigning happens on the
+ * group level not after the result are computed. This leads to heavy computation alongside 
+ * with returning data that dont make sense on the first look. 
+ * 
+ * Note: this issue could be solved by moving references to sesvar->arg and skipping the sesvar itself 
+ **/
+static bool
+check_nested_sesvars_walker(Node *node, void *context)
+{
+    if (node == NULL)
+        return false;
+    
+    if (IsA(node, SesVarExpr))
+        elog(ERROR, "Can NOT use SESVAR nested expressions inside GROUP/SORT BY clause.");        
+    
+    return expression_tree_walker(node, check_nested_sesvars_walker, context);
+}
+
+/*
+ * Session variable inside grouping and sorting clause need some special handling to make 
+ * sure the final assigned value will make sense to the user + to reduce needless computations.
+ * 
+ * By default the expression would try to assign each value while creating the group list
+ * now that is heavy on computation + we dont need that what we want is to only get the final
+ * returned rows inside the sesvar -> Transform SESVAR expression to only process the arg inside GROUP BY
+ **/
+static TargetEntry *
+transformSesVarEntry(ParseState *pstate, List **tlist, TargetEntry *tle, ParseExprKind exprKind)
+{
+    if(IsA(tle->expr, SesVarExpr))
+    {
+        Node *expr = ((SesVarExpr *) tle->expr)->arg;
+
+        check_nested_sesvars_walker(expr, NULL);
+        
+        tle = transformTargetEntry(pstate, NULL, expr, exprKind,
+                                   NULL, true);
+
+        *tlist = lappend(*tlist, tle);
+    }
+    
+    return tle;
+}
+
+/*
  * Transform a single expression within a GROUP BY clause or grouping set.
  *
  * The expression is added to the targetlist if not already present, and to the
@@ -2376,6 +2424,11 @@ transformGroupClauseExpr(List **flatresult, Bitmapset *seen_local,
 	else
 		tle = findTargetlistEntrySQL92(pstate, gexpr,
 									   targetlist, exprKind);
+
+    /* 
+     * If it is a SESVAR we have to do special handling
+     **/
+    tle = transformSesVarEntry(pstate, targetlist, tle, exprKind);
 
 	if (tle->ressortgroupref > 0)
 	{
@@ -2748,7 +2801,12 @@ transformSortClause(ParseState *pstate,
 			tle = findTargetlistEntrySQL92(pstate, sortby->node,
 										   targetlist, exprKind);
 
-		sortlist = addTargetToSortList(pstate, tle,
+        /* 
+         * If it is a SESVAR we have to do special handling
+         **/
+        tle = transformSesVarEntry(pstate, targetlist, tle, exprKind);
+
+        sortlist = addTargetToSortList(pstate, tle,
 									   sortlist, *targetlist, sortby);
 	}
 

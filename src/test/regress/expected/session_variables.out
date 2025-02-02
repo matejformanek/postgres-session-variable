@@ -36,6 +36,14 @@ SELECT @var_string,
  Text        |       53 |      0.00007 |           | 2024-05-01 | {1,5,3,4}
 (1 row)
 
+-- huge number
+SET @huge_num := 18446457440717109658599999999999999999999999999999999999999;
+SELECT @huge_num := @huge_num + 2;
+                          @huge_num                          
+-------------------------------------------------------------
+ 18446457440717109658600000000000000000000000000000000000001
+(1 row)
+
 -- Number by default but convertible to text
 SET @num := 5;
 SELECT @num;
@@ -526,4 +534,101 @@ SELECT @"@t";
    5
 (1 row)
 
+-- GROUP/SORT BY right-argument not SESVAR EXPR even when specified
+-- Grouping by Expr would lead to the grouping sesvar column having potentially different value then the 
+-- variable assigning the agg function thus giving us in select two values that doesn't correspond to each other 
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY col_char || ' A'
+ORDER BY col_char || ' A' DESC;
+     @grp      | @sum_ci 
+---------------+---------
+ Text Concat A |       8
+ Blocker A     |      12
+ 5 A           |      35
+(3 rows)
+
+SELECT @grp, @sum_ci;
+ @grp | @sum_ci 
+------+---------
+ 5 A  |      35
+(1 row)
+
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+     @grp      | @sum_ci 
+---------------+---------
+ 5 A           |      35
+ Blocker A     |      12
+ Text Concat A |       8
+(3 rows)
+
+SELECT @grp, @sum_ci;
+ @grp | @sum_ci 
+------+---------
+ 5 A  |      35
+(1 row)
+
+SELECT @grp := col_char, @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1;
+    @grp     | @sum_ci 
+-------------+---------
+ Text Concat |       8
+ 5           |      35
+ Blocker     |      12
+(3 rows)
+
+SELECT @grp, @sum_ci;
+  @grp   | @sum_ci 
+---------+---------
+ Blocker |      12
+(1 row)
+
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY @grp;
+     @grp      | @sum_ci 
+---------------+---------
+ Blocker A     |      12
+ Text Concat A |       8
+ 5 A           |      35
+(3 rows)
+
+SELECT @grp, @sum_ci;
+ @grp | @sum_ci 
+------+---------
+ 5 A  |      35
+(1 row)
+
+SELECT @grp := col_char  || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY @grp := col_char  || ' A'
+ORDER BY @grp;
+     @grp      | @sum_ci 
+---------------+---------
+ 5 A           |      35
+ Blocker A     |      12
+ Text Concat A |       8
+(3 rows)
+
+SELECT @grp, @sum_ci;
+ @grp | @sum_ci 
+------+---------
+ 5 A  |      35
+(1 row)
+
+SELECT @grp := @grp2 := col_char || ' A', -- should fail
+       @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1;
+ERROR:  Can NOT use SESVAR nested expressions inside GROUP/SORT BY clause.
+SELECT @grp := 'S' || @p := 'B' || @grp2 := col_char || ' A', -- should fail
+       @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+ERROR:  Can NOT use SESVAR nested expressions inside GROUP/SORT BY clause.
 DROP TABLE test;

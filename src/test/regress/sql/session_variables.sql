@@ -30,6 +30,10 @@ SELECT @var_string,
        @var_date,
        @var_array;
 
+-- huge number
+SET @huge_num := 18446457440717109658599999999999999999999999999999999999999;
+SELECT @huge_num := @huge_num + 2;
+
 -- Number by default but convertible to text
 SET @num := 5;
 SELECT @num;
@@ -373,5 +377,52 @@ SET "@t" := 5; -- should fail
 SET @"@t" := 5;
 
 SELECT @"@t";
+
+-- GROUP/SORT BY right-argument not SESVAR EXPR even when specified
+-- Grouping by Expr would lead to the grouping sesvar column having potentially different value then the 
+-- variable assigning the agg function thus giving us in select two values that doesn't correspond to each other 
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY col_char || ' A'
+ORDER BY col_char || ' A' DESC;
+
+SELECT @grp, @sum_ci;
+
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+
+SELECT @grp, @sum_ci;
+
+SELECT @grp := col_char, @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1;
+
+SELECT @grp, @sum_ci;
+
+SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY @grp;
+
+SELECT @grp, @sum_ci;
+
+SELECT @grp := col_char  || ' A', @sum_ci := SUM(col_int)
+FROM test
+GROUP BY @grp := col_char  || ' A'
+ORDER BY @grp;
+
+SELECT @grp, @sum_ci;
+
+SELECT @grp := @grp2 := col_char || ' A', -- should fail
+       @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1;
+
+SELECT @grp := 'S' || @p := 'B' || @grp2 := col_char || ' A', -- should fail
+       @sum_ci := SUM(col_int)
+FROM test
+GROUP BY 1
+ORDER BY 1;
 
 DROP TABLE test;
