@@ -534,9 +534,12 @@ SELECT @"@t";
    5
 (1 row)
 
--- GROUP/SORT BY right-argument not SESVAR EXPR even when specified
+-- GROUP/SORT BY without SESVAR EXPR even when specified
 -- Grouping by Expr would lead to the grouping sesvar column having potentially different value then the 
--- variable assigning the agg function thus giving us in select two values that doesn't correspond to each other 
+-- variable assigning the agg function thus giving us in select two values that doesn't correspond to each other
+-- This is because the SESVAR would be assigning each time when preparing the grouped data and not assign the result
+-- 
+-- We allow beginning with SESVAR to assign the final value but it cannot be nested anywhere else 
 SELECT @grp := col_char || ' A', @sum_ci := SUM(col_int)
 FROM test
 GROUP BY col_char || ' A'
@@ -630,5 +633,9 @@ SELECT @grp := 'S' || @p := 'B' || @grp2 := col_char || ' A', -- should fail
 FROM test
 GROUP BY 1
 ORDER BY 1;
+ERROR:  Can NOT use SESVAR nested expressions inside GROUP/SORT BY clause.
+SELECT col_char || @grp := 'A', @sum_ci := SUM(col_int) -- should fail
+FROM test
+GROUP BY 1;
 ERROR:  Can NOT use SESVAR nested expressions inside GROUP/SORT BY clause.
 DROP TABLE test;

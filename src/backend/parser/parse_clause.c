@@ -2385,7 +2385,8 @@ transformSesVarEntry(ParseState *pstate, List **tlist, TargetEntry *tle, ParseEx
                                    NULL, true);
 
         *tlist = lappend(*tlist, tle);
-    }
+    } else
+        check_nested_sesvars_walker(tle->expr, NULL);
     
     return tle;
 }
