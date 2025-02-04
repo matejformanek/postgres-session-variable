@@ -561,6 +561,65 @@ SELECT @a, @b;
   5 | 5
 (1 row)
 
+DO
+$$
+    DECLARE
+        a INT;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+
+        SELECT 5.5, 'Ahoj' INTO @a, @b; -- different type assignment
+    END;
+$$;
+NOTICE:  5s 5.5 3 TEST test
+SELECT @a * 2, @b, @t1, @t2, @t1 < @t2;
+ ?column? |  @b  | @t1  | @t2  | ?column? 
+----------+------+------+------+----------
+     11.0 | Ahoj | TEST | test | t
+(1 row)
+
+SET @existing := 'Test';
+DO -- self assigning
+$$
+    BEGIN
+        SELECT @existing, @existing || ' 2' INTO @existing, @existing;
+    END;
+$$;
+SELECT @existing;
+ @existing 
+-----------
+ Test 2
+(1 row)
+
+DO -- Execute
+$$
+    BEGIN
+        EXECUTE FORMAT('SELECT $1 || 2') USING @existing INTO @existing;
+
+        RAISE NOTICE '%', @existing;
+    END;
+$$;
+NOTICE:  Test 22
+SET @existing := 'Test';
+DO
+$$
+    DECLARE
+        res text;
+    BEGIN
+        EXECUTE 'SELECT @existing := 5' INTO res;
+
+        RAISE NOTICE '%', res;
+    END;
+$$;
+NOTICE:  5
+SELECT @existing;
+ @existing 
+-----------
+         5
+(1 row)
+
 DO -- should fail
 $$
     DECLARE

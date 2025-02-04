@@ -402,6 +402,55 @@ $$;
 
 SELECT @a, @b;
 
+DO
+$$
+    DECLARE
+        a INT;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+
+        SELECT 5.5, 'Ahoj' INTO @a, @b; -- different type assignment
+    END;
+$$;
+
+SELECT @a * 2, @b, @t1, @t2, @t1 < @t2;
+
+SET @existing := 'Test';
+
+DO -- self assigning
+$$
+    BEGIN
+        SELECT @existing, @existing || ' 2' INTO @existing, @existing;
+    END;
+$$;
+
+SELECT @existing;
+
+DO -- Execute
+$$
+    BEGIN
+        EXECUTE FORMAT('SELECT $1 || 2') USING @existing INTO @existing;
+
+        RAISE NOTICE '%', @existing;
+    END;
+$$;
+
+SET @existing := 'Test';
+
+DO
+$$
+    DECLARE
+        res text;
+    BEGIN
+        EXECUTE 'SELECT @existing := 5' INTO res;
+
+        RAISE NOTICE '%', res;
+    END;
+$$;
+
+SELECT @existing;
 
 DO -- should fail
 $$
