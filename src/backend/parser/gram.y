@@ -439,7 +439,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 				vacuum_relation_list opt_vacuum_relation_list
 				drop_option_list pub_obj_list session_variable_list
 
-%type <node>	opt_routine_body sessionVariableDef
+%type <node>	opt_routine_body SetSessionVariableItem
 %type <groupclause> group_clause
 %type <list>	group_by_list
 %type <node>	group_by_item empty_grouping_set rollup_clause cube_clause
@@ -2048,17 +2048,17 @@ SetSessionVariableStmt:
         ;
 
 session_variable_list:
-            sessionVariableDef
+            SetSessionVariableItem
                 {
                     $$ = list_make1($1);
                 }
-            | session_variable_list ',' sessionVariableDef
+            | session_variable_list ',' SetSessionVariableItem
                 {
                     $$ = lappend($1, $3);
                 }
         ;
 
-sessionVariableDef:
+SetSessionVariableItem:
             SESSION_VAR_NAME COLON_EQUALS a_expr
                 {
                     ResTarget *n = makeNode(ResTarget);
