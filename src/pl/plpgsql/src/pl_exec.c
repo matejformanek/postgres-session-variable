@@ -22,6 +22,7 @@
 #include "access/tupconvert.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
+#include "commands/sessionvariable.h"
 #include "executor/execExpr.h"
 #include "executor/spi.h"
 #include "executor/tstoreReceiver.h"
@@ -5093,7 +5094,9 @@ exec_assign_value(PLpgSQL_execstate *estate,
 				 */
 				PLpgSQL_var *var = (PLpgSQL_var *) target;
 				Datum		newvalue;
-
+                int16 typLen;
+                bool typByVal;
+                
 				newvalue = exec_cast_value(estate,
 										   value,
 										   &isNull,
@@ -5108,6 +5111,16 @@ exec_assign_value(PLpgSQL_execstate *estate,
 							 errmsg("null value cannot be assigned to variable \"%s\" declared NOT NULL",
 									var->refname)));
 
+                /*
+                 * SESVAR doesn't have strict type -> just inherits it from the data that are being saved 
+                 **/
+                if(var->refname[0] == '@') {
+                    get_typlenbyval(valtype, &typLen, &typByVal);
+                    
+                    var->isnull = isNull;
+                    var->datatype->typbyval = typByVal;
+                }
+                
 				/*
 				 * If type is by-reference, copy the new value (which is
 				 * probably in the eval_mcontext) into the procedure's main
@@ -5159,6 +5172,21 @@ exec_assign_value(PLpgSQL_execstate *estate,
 									  (!var->datatype->typbyval && !isNull));
 				else
 					var->promise = PLPGSQL_PROMISE_NONE;
+
+                /*
+                 * If the var is a session variable
+                 * Save the value in memory
+                 */
+                if(var->refname[0] == '@')
+                    setSessionVariable(var->refname,
+                                       makeConstSessionVariable(
+                                               valtype,
+                                               valtypmod,
+                                               var->datatype->collation,
+                                               typByVal,
+                                               typLen,
+                                               isNull,
+                                               value));
 				break;
 			}
 
@@ -7231,6 +7259,9 @@ exec_move_row_from_fields(PLpgSQL_execstate *estate,
 				isnull = nulls[anum];
 				valtype = TupleDescAttr(tupdesc, anum)->atttypid;
 				valtypmod = TupleDescAttr(tupdesc, anum)->atttypmod;
+                /* if it is a SESVAR add collation info as well */
+                if(((PLpgSQL_var *) var)->refname[0] == '@')
+                    ((PLpgSQL_var *) var)->datatype->collation = TupleDescAttr(tupdesc, anum)->attcollation;
 				anum++;
 			}
 			else

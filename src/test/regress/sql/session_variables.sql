@@ -384,4 +384,95 @@ SET @"@t" := 5;
 
 SELECT @"@t";
 
+-- SELECT ... INTO SESVAR
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+    END;
+$$;
+
+-- test correct type and collation
+SELECT @a, @b, @b * 2, @t1, @t2, @t1 < @t2;
+
+DO
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO a, @a, @b
+        FROM test;
+    END;
+$$;
+
+SELECT @a, @b;
+
+DO
+$$
+    DECLARE
+        a INT;
+    BEGIN
+        SELECT '5s', 5.5, 3, 'TEST' COLLATE "POSIX", 'test' INTO @a, @b, a, @t1, @t2;
+
+        RAISE NOTICE '% % % % %', @a, @b, a, @t1, @t2;
+
+        SELECT 5.5, 'Ahoj' INTO @a, @b; -- different type assignment
+    END;
+$$;
+
+SELECT @a * 2, @b, @t1, @t2, @t1 < @t2;
+
+SET @existing := 'Test';
+
+DO -- self assigning
+$$
+    BEGIN
+        SELECT @existing, @existing || ' 2' INTO @existing, @existing;
+    END;
+$$;
+
+SELECT @existing;
+
+DO -- Execute
+$$
+    BEGIN
+        EXECUTE FORMAT('SELECT $1 || 2') USING @existing INTO @existing;
+
+        RAISE NOTICE '%', @existing;
+    END;
+$$;
+
+SET @existing := 'Test';
+
+DO
+$$
+    DECLARE
+        res text;
+    BEGIN
+        EXECUTE 'SELECT @existing := 5' INTO res;
+
+        RAISE NOTICE '%', res;
+    END;
+$$;
+
+SELECT @existing;
+
+DO -- should fail
+$$
+    DECLARE
+        a int;
+    BEGIN
+        SELECT col_int, col_int, col_char
+        INTO STRICT a, @x, @y
+        FROM test;
+    END;
+$$;
+
+SELECT @x, @y;  -- should fail
+
 DROP TABLE test;
