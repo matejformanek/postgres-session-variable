@@ -138,6 +138,41 @@ GROUP BY col_char;
 
 SELECT @sum_ci;
 
+SET @agg := 0;
+
+SELECT @agg := @agg + col_int, @cnt := COUNT(*)
+FROM test
+GROUP BY 1;
+
+SELECT @agg, @cnt, @agg := 0;
+
+SELECT @agg := @agg + col_int, @cnt := COUNT(*)
+FROM test
+GROUP BY @agg := @agg + col_int;
+
+SELECT @agg, @cnt, @agg := 0;
+
+SELECT @agg := @agg + col_int, @cnt := COUNT(*)
+FROM test
+GROUP BY col_int;
+
+SELECT @agg, @cnt, @agg := 0;
+
+SELECT @agg := col_int, @cnt := COUNT(*)
+FROM test
+GROUP BY 1;
+
+-- @agg works over the data being prepared for aggregation
+-- @cnt saves the result of aggregation
+-- It means that @agg and @cnt do NOT have to be from the same row
+SELECT @agg, @cnt, @agg := 0;
+
+SELECT @agg := col_int, @cnt := COUNT(*)
+FROM test
+GROUP BY col_int;
+
+SELECT @agg, @cnt, @agg := 0;
+
 -- Transaction
 SET @var := 1;
 BEGIN;
@@ -441,7 +476,7 @@ SELECT @existing;
 DO -- Execute
 $$
     BEGIN
-        EXECUTE FORMAT('SELECT $1 || 2') USING @existing INTO @existing;
+        EXECUTE FORMAT('SELECT $1 || @a') USING @existing INTO @existing;
 
         RAISE NOTICE '%', @existing;
     END;
@@ -474,5 +509,19 @@ $$
 $$;
 
 SELECT @x, @y;  -- should fail
+
+SELECT @a := @a := 5;
+
+-- Prepared statements
+PREPARE s1 AS SELECT $1 + @a;
+EXECUTE s1(@a);
+SET @a := 15;
+EXECUTE s1(@a);
+DEALLOCATE s1;
+
+PREPARE s2 AS SELECT $1 + @a := 5 + $2;
+EXECUTE s2(@a, 2);
+SELECT @a;
+DEALLOCATE s2;
 
 DROP TABLE test;
