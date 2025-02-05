@@ -48,8 +48,18 @@ SELECT @var;
 
 SET @sa := @sa + 1; -- should fail
 
+-- TEXT type coercion with concate operator
+-- Used to cause bugs due to text being saved in SESVAR as UNKNOWNOID
+-- but coerce works only with TEXTOID 
+SELECT @b := '.hoj'::TEXT;
+SELECT @b;
+SELECT 'A' || @b , 'A' || @b;
+SELECT @b := '.hoj' || '.A';
+SELECT 'A' || @b := '.hoj', 'A' || @b;
+SELECT 'A' || @b := NULL, 'A' || @b;
+    
 -- Assigning from variables initiated earlier in the chain
-
+--
 -- Thanks to the pstate->sesvar_changes we don't have to add typecast to
 -- @char_int * @created_int previously gained expr types will be assigned to them ->
 -- this way parser knows @created_int is an INT even though it has not yet been saved in memory 

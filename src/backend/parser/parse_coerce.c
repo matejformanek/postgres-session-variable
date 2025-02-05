@@ -378,7 +378,23 @@ coerce_type(ParseState *pstate, Node *node,
     if(IsA(node, SesVarExpr)){
         SesVarExpr *sesvar = (SesVarExpr *) node;
         /* Set the required type for future parsing */
-        sesvar->resulttype = exprType(sesvar->arg);
+        sesvar->resulttype = targetTypeId;
+        
+        /*
+         * Make sure the SESVAR argument that we propagate further as it's value
+         * is coerced to the required type
+         * 
+         * This also saves us possible repeated coercion in Exec
+         **/
+        if(targetTypeId != exprType(sesvar->arg))
+            sesvar->arg = coerce_type(NULL,
+                                      (Node *) sesvar->arg,
+                                      exprType(sesvar->arg),
+                                      targetTypeId,
+                                      -1,
+                                      COERCION_IMPLICIT,
+                                      COERCE_IMPLICIT_CAST,
+                                      -1);
 
         return (Node *) sesvar;
     }
