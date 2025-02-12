@@ -524,4 +524,31 @@ EXECUTE s2(@a, 2);
 SELECT @a;
 DEALLOCATE s2;
 
+-- EXPLAIN
+
+EXPLAIN SELECT @agg := @bgg := @agg + col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+
+EXPLAIN SELECT @agg := (@agg + col_int), COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1 DESC;
+
+EXPLAIN SELECT @agg := col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+
+EXPLAIN SELECT @agg := @bgg, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+
+EXPLAIN SELECT @agg + col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1 DESC;
+
 DROP TABLE test;

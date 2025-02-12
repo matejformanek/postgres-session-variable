@@ -808,4 +808,67 @@ SELECT @a;
 (1 row)
 
 DEALLOCATE s2;
+-- EXPLAIN
+EXPLAIN SELECT @agg := @bgg := @agg + col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+                            QUERY PLAN                             
+-------------------------------------------------------------------
+ Sort  (cost=32.57..33.07 rows=200 width=12)
+   Sort Key: (@agg := @bgg := (@agg + col_int))
+   ->  HashAggregate  (cost=22.42..24.92 rows=200 width=12)
+         Group Key: @agg := @bgg := (@agg + col_int)
+         ->  Seq Scan on test  (cost=0.00..18.88 rows=710 width=4)
+(5 rows)
+
+EXPLAIN SELECT @agg := (@agg + col_int), COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1 DESC;
+                            QUERY PLAN                             
+-------------------------------------------------------------------
+ Sort  (cost=32.57..33.07 rows=200 width=12)
+   Sort Key: (@agg := (@agg + col_int)) DESC
+   ->  HashAggregate  (cost=22.42..24.92 rows=200 width=12)
+         Group Key: @agg := (@agg + col_int)
+         ->  Seq Scan on test  (cost=0.00..18.88 rows=710 width=4)
+(5 rows)
+
+EXPLAIN SELECT @agg := col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+                            QUERY PLAN                             
+-------------------------------------------------------------------
+ Sort  (cost=30.29..30.79 rows=200 width=12)
+   Sort Key: (@agg := col_int)
+   ->  HashAggregate  (cost=20.65..22.65 rows=200 width=12)
+         Group Key: @agg := col_int
+         ->  Seq Scan on test  (cost=0.00..17.10 rows=710 width=4)
+(5 rows)
+
+EXPLAIN SELECT @agg := @bgg, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1;
+                         QUERY PLAN                          
+-------------------------------------------------------------
+ GroupAggregate  (cost=0.00..18.89 rows=1 width=40)
+   ->  Seq Scan on test  (cost=0.00..17.10 rows=710 width=0)
+(2 rows)
+
+EXPLAIN SELECT @agg + col_int, COUNT(*)
+FROM test
+GROUP BY 1
+ORDER BY 1 DESC;
+                            QUERY PLAN                             
+-------------------------------------------------------------------
+ Sort  (cost=32.57..33.07 rows=200 width=12)
+   Sort Key: ((@agg + col_int)) DESC
+   ->  HashAggregate  (cost=22.42..24.92 rows=200 width=12)
+         Group Key: (@agg + col_int)
+         ->  Seq Scan on test  (cost=0.00..18.88 rows=710 width=4)
+(5 rows)
+
 DROP TABLE test;

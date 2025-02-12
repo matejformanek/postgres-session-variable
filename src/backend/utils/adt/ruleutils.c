@@ -485,6 +485,7 @@ static void get_coercion_expr(Node *arg, deparse_context *context,
 							  Node *parentNode);
 static void get_const_expr(Const *constval, deparse_context *context,
 						   int showtype);
+static void get_sesvar_expr(SesVarExpr *sesvar, deparse_context *context, bool showimplicit);
 static void get_const_collation(Const *constval, deparse_context *context);
 static void get_json_format(JsonFormat *format, StringInfo buf);
 static void get_json_returning(JsonReturning *returning, StringInfo buf,
@@ -8613,6 +8614,12 @@ get_parameter(Param *param, deparse_context *context)
 		return;
 	}
 
+    if(param->paramkind == PARAM_SESSION_VARIABLE)
+    {
+        appendStringInfoString(context->buf, param->paramsesvarid);
+        return;
+    }
+    
 	/*
 	 * If it's an external parameter, see if the outermost namespace provides
 	 * function argument names.
@@ -9130,6 +9137,10 @@ get_rule_expr(Node *node, deparse_context *context,
 		case T_Const:
 			get_const_expr((Const *) node, context, 0);
 			break;
+
+        case T_SesVarExpr:
+            get_sesvar_expr((SesVarExpr *) node, context, showimplicit);
+            break;
 
 		case T_Param:
 			get_parameter((Param *) node, context);
@@ -11418,6 +11429,17 @@ get_const_collation(Const *constval, deparse_context *context)
 							 generate_collation_name(constval->constcollid));
 		}
 	}
+}
+
+/*
+ * get_sesvar_expr		- Parse back a SESVAR path specification
+ */
+static void
+get_sesvar_expr(SesVarExpr *sesvar, deparse_context *context, bool showimplicit)
+{
+    appendStringInfo(context->buf, "%s := ", sesvar->name);
+
+    get_rule_expr(sesvar->arg, context, showimplicit);
 }
 
 /*
