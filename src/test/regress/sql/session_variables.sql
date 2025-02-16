@@ -551,4 +551,54 @@ FROM test
 GROUP BY 1
 ORDER BY 1 DESC;
 
+-- Tricky cases
+SET @a := 0;
+
+SELECT col_int, @a, @a := @a + COUNT(*), COUNT(*), @a
+FROM test
+GROUP BY col_int;
+
+SELECT (@v := col_int) <> (@v := 6), col_int, @v
+FROM test;
+
+-- Variable name length
+-- @ + 62 length is OK
+SET @X2345678901234567890123456789012345678901234567890123456789012 := 12;
+SELECT @x2345678901234567890123456789012345678901234567890123456789012 := 12;
+SELECT @x2345678901234567890123456789012345678901234567890123456789012;
+
+-- @ + 63 should be TRUNCATED
+SET @X23456789012345678901234567890123456789012345678901234567890123 := 12;
+SELECT @x23456789012345678901234567890123456789012345678901234567890123 := 12;
+SELECT @x23456789012345678901234567890123456789012345678901234567890123;
+
+-- empty string
+SET @a := '';
+SELECT @a;
+
+-- Type handling
+CREATE TYPE test_type AS
+(
+    a INT,
+    b TEXT
+);
+
+SET @typ := (5, 'ahoj');
+
+SELECT @typ, (@typ::TEST_TYPE).a, (@typ::TEST_TYPE).b;
+
+SELECT (@typ).a; -- should fail
+
+SET @typ := (5, 'ahoj')::TEST_TYPE;
+
+SELECT @typ, (@typ).a, (@typ).b, (@typ).*;
+
+SELECT @typ.a; -- should fail
+
+SET @arr := ARRAY [8, 4 , 5];
+
+SELECT (@arr)[2];
+
+SELECT @arr[2], @arr, @arr[2:3];
+
 DROP TABLE test;

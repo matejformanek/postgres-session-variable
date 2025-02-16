@@ -510,7 +510,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <node>	columnDef columnOptions optionalPeriodName
 %type <defelt>	def_elem reloption_elem old_aggr_elem operator_def_elem
 %type <node>	def_arg columnElem where_clause where_or_current_clause
-				a_expr b_expr c_expr AexprConst indirection_el opt_slice_bound
+				a_expr b_expr c_expr AexprConst indirection_el indirection_arr opt_slice_bound
 				columnref in_expr having_clause func_table xmltable array_expr
 				OptWhereClause operator_def_arg session_var_name_ref
 %type <list>	opt_column_and_period_list
@@ -2078,6 +2078,10 @@ session_var_name_ref:
             SESSION_VAR_NAME
                 {
                     $$ = makeColumnRef($1, NIL, @1, yyscanner);
+                }
+            | SESSION_VAR_NAME indirection_arr
+                {
+                    $$ = makeColumnRef($1, list_make1($2), @1, yyscanner);
                 }
             | SESSION_VAR_NAME COLON_EQUALS a_expr %prec IS
                 {
@@ -16875,7 +16879,14 @@ indirection_el:
 				{
 					$$ = (Node *) makeNode(A_Star);
 				}
-			| '[' a_expr ']'
+			| indirection_arr
+			    {
+			        $$ = $1;
+			    }
+		;
+		
+indirection_arr:
+            '[' a_expr ']'
 				{
 					A_Indices *ai = makeNode(A_Indices);
 
@@ -16893,8 +16904,8 @@ indirection_el:
 					ai->uidx = $4;
 					$$ = (Node *) ai;
 				}
-		;
-
+        ;
+        
 opt_slice_bound:
 			a_expr									{ $$ = $1; }
 			| /*EMPTY*/								{ $$ = NULL; }
