@@ -584,10 +584,12 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 			break;
 
 		case EXPR_KIND_COLUMN_DEFAULT:
-			err = _("cannot use column reference in DEFAULT expression");
+            if(strVal(linitial(cref->fields))[0] != '@')
+			    err = _("cannot use column reference in DEFAULT expression");
 			break;
 		case EXPR_KIND_PARTITION_BOUND:
-			err = _("cannot use column reference in partition bound expression");
+            if(strVal(linitial(cref->fields))[0] != '@')
+                err = _("cannot use column reference in partition bound expression");
 			break;
 
 			/*
