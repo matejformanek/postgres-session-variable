@@ -71,13 +71,15 @@ SELECT @var;
    29
 (1 row)
 
-SET @sa := @sa + 1; -- should fail
-ERROR:  session variable "@sa" does not exist
-SET @sa := @nonexistent; -- should fail
-ERROR:  session variable "@nonexistent" does not exist
+SET @sa := @sa + 1;
+SET @sa := @nonexistent;
     
-SELECT @sa; -- should fail
-ERROR:  session variable "@sa" does not exist
+SELECT @sa;
+ @sa 
+-----
+ 
+(1 row)
+
         
 -- Assigning from variables initiated earlier in the chain
 --
@@ -155,6 +157,13 @@ NOTICE:  identifier "@x234567890123456789012345678901234567890123456789012345678
  @x2345678901234567890123456789012345678901234567890123456789012 
 -----------------------------------------------------------------
                                                               12
+(1 row)
+
+-- If not set return NULL
+SELECT @not_set, @not_set := 'NOW SET', @not_set;
+ @not_set | @not_set | @not_set 
+----------+----------+----------
+          | NOW SET  | NOW SET
 (1 row)
 
 -- Type ------------------------------------
@@ -315,8 +324,12 @@ SELECT @TEST, @test, @"Test", @"Te.St";
      5 |     5 |     3 |      4
 (1 row)
 
-SELECT @"tEST"; -- should fail
-ERROR:  session variable "@tEST" does not exist
+SELECT @"tEST";
+ @tEST 
+-------
+ 
+(1 row)
+
 SET "@t" := 5; -- should fail
 ERROR:  syntax error at or near ":="
 LINE 1: SET "@t" := 5;
@@ -817,7 +830,6 @@ CREATE TABLE tmp2
 );
 INSERT INTO tmp2 (cc)
 VALUES (5); -- should fail
-ERROR:  session variable "@d" does not exist
 DROP TABLE tmp;
 DROP TABLE tmp2;
 -- Aggregated functions --------------------
@@ -1327,8 +1339,12 @@ $$;
 ERROR:  query returned more than one row
 HINT:  Make sure the query returns a single row, or use LIMIT 1.
 CONTEXT:  PL/pgSQL function inline_code_block line 5 at SQL statement
-SELECT @x, @y; -- should fail
-ERROR:  session variable "@y" does not exist
+SELECT @x, @y;
+  @x  | @y 
+------+----
+ Ahoj | 
+(1 row)
+
 -- EXECUTE ---------------------------------
 DO
 $$

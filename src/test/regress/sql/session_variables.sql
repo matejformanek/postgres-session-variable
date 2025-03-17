@@ -51,11 +51,11 @@ SET @var := (@var * @var) + @var - 1;
 
 SELECT @var;
 
-SET @sa := @sa + 1; -- should fail
+SET @sa := @sa + 1;
 
-SET @sa := @nonexistent; -- should fail
+SET @sa := @nonexistent;
     
-SELECT @sa; -- should fail
+SELECT @sa;
         
 -- Assigning from variables initiated earlier in the chain
 --
@@ -100,6 +100,9 @@ SELECT @x2345678901234567890123456789012345678901234567890123456789012;
 SET @X23456789012345678901234567890123456789012345678901234567890123 := 12;
 SELECT @x23456789012345678901234567890123456789012345678901234567890123 := 12;
 SELECT @x23456789012345678901234567890123456789012345678901234567890123;
+
+-- If not set return NULL
+SELECT @not_set, @not_set := 'NOW SET', @not_set;
 
 -- Type ------------------------------------
 -- Number by default but convertible to text
@@ -193,7 +196,7 @@ SET @TEST := 2, @test := 5, @"Test" := 3, @"Te.St" := 4;
 
 SELECT @TEST, @test, @"Test", @"Te.St";
 
-SELECT @"tEST"; -- should fail
+SELECT @"tEST";
 
 SET "@t" := 5; -- should fail
 
@@ -801,7 +804,7 @@ $$
     END;
 $$;
 
-SELECT @x, @y; -- should fail
+SELECT @x, @y;
 
 -- EXECUTE ---------------------------------
 DO

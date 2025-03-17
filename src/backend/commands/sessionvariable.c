@@ -153,6 +153,17 @@ getParamSessionVariable(char *name) {
         param->paramtype = UNKNOWNOID;
         param->paramtypmod = -1;
         param->paramcollid = InvalidOid;
+
+        /* Save it as NULL value to memory */
+        setSessionVariable(name, makeConstSessionVariable(
+                UNKNOWNOID,
+                -1,
+                InvalidOid,
+                true,
+                -1,
+                true,
+                (Datum) 0
+                ));
     } else {
         con = (Const *) variable->expr;
 
