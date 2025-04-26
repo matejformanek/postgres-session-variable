@@ -549,6 +549,27 @@ FROM test
 GROUP BY 1
 ORDER BY 1 DESC;
 
+-------------------------------------------- STRICT TYPE ------------------------------------------------
+
+SET @d := 5;
+SET @d := 'dds';
+SELECT @d;
+
+SET @d := '2024-01-01' TYPE DATE, @i := '1 MONTH' TYPE INTERVAL;
+SELECT @d;
+SET @d := 'dds';
+SET @d := '2021-01-01';
+SELECT @d + @i;
+
+SET @d := 25 TYPE INT;
+SET @d := 'dds';
+SET @d := '2021-01-01';
+SET @d := '45';
+SELECT @d;
+
+SET @d := NULL;
+SELECT @d;
+
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part
 SET @var := 1;

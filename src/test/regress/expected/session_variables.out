@@ -1019,6 +1019,50 @@ ORDER BY 1 DESC;
          ->  Seq Scan on test  (cost=0.00..18.88 rows=710 width=4)
 (5 rows)
 
+-------------------------------------------- STRICT TYPE ------------------------------------------------
+SET @d := 5;
+SET @d := 'dds';
+SELECT @d;
+ @d  
+-----
+ dds
+(1 row)
+
+SET @d := '2024-01-01' TYPE DATE, @i := '1 MONTH' TYPE INTERVAL;
+SELECT @d;
+     @d     
+------------
+ 01-01-2024
+(1 row)
+
+SET @d := 'dds';
+ERROR:  invalid input syntax for type date: "dds"
+SET @d := '2021-01-01';
+SELECT @d + @i;
+         ?column?         
+--------------------------
+ Mon Feb 01 00:00:00 2021
+(1 row)
+
+SET @d := 25 TYPE INT;
+SET @d := 'dds';
+ERROR:  invalid input syntax for type integer: "dds"
+SET @d := '2021-01-01';
+ERROR:  invalid input syntax for type integer: "2021-01-01"
+SET @d := '45';
+SELECT @d;
+ @d 
+----
+ 45
+(1 row)
+
+SET @d := NULL;
+SELECT @d;
+ @d 
+----
+   
+(1 row)
+
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part
 SET @var := 1;

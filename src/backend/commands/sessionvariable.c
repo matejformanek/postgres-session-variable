@@ -55,7 +55,7 @@
 
 void initSessionVariables(void);
 
-void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
+void saveSessionVariable(sessionVariable *result, Node *expr, bool exists, bool new_strict_type);
 
 /*
  * Returns Const value of a session variable
@@ -181,9 +181,9 @@ makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int
 }
 
 void
-saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
+saveSessionVariable(sessionVariable *result, Node *expr, bool exists, bool new_strict_type) {
     MemoryContext oldContext;
-    Node *oldExpr = NULL;
+    Node * oldExpr = NULL;
 
     Assert(result);
 
@@ -193,6 +193,18 @@ saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
             InvalidateSesvarCache(result->key);
 
         oldExpr = result->expr;
+        if(new_strict_type)
+            result->strict_type = true;
+        
+        if (!new_strict_type && result->strict_type && ((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
+            expr = coerce_type(NULL,
+                               expr,
+                               ((Const *) expr)->consttype,
+                               ((Const *) result->expr)->consttype,
+                               -1,
+                               COERCION_IMPLICIT,
+                               COERCE_IMPLICIT_CAST,
+                               -1);
     }
 
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
@@ -202,7 +214,7 @@ saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
     MemoryContextSwitchTo(oldContext);
 
     /* Free old Expr-Node if we rewrote it with new data */
-    if(oldExpr)
+    if (oldExpr)
         pfree(oldExpr);
 }
 
@@ -222,7 +234,7 @@ initSessionVariables() {
     Assert(CurrentSession->variables != NULL);
 }
 
-void setSessionVariable(char *varname, Node *expr) {
+void setSessionVariable(char *varname, Node *expr, bool new_strict_type) {
     sessionVariable *ref;
     bool found;
 
@@ -236,6 +248,9 @@ void setSessionVariable(char *varname, Node *expr) {
 
     if (ref == NULL)
         elog(ERROR, "Could not allocate space for session variable");
-
-    saveSessionVariable(ref, expr, found);
+    
+    if(!found)
+        ref->strict_type = new_strict_type;    
+    
+    saveSessionVariable(ref, expr, found, new_strict_type);
 }

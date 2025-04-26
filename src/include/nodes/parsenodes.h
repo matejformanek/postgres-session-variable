@@ -294,6 +294,7 @@ typedef struct ColumnRef
 {
 	NodeTag		type;
 	List	   *fields;			/* field names (String nodes) or A_Star */
+    TypeName   *typeName;
 	ParseLoc	location;		/* token location, or -1 if unknown */
 } ColumnRef;
 

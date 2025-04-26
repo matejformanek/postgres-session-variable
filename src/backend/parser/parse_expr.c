@@ -1400,7 +1400,19 @@ transformAExprSessionVariable(ParseState *pstate, A_Expr *a)
     bool found;
     
     result->arg = transformExprRecurse(pstate, a->rexpr);
-    result->resulttype = exprType(result->arg);
+    result->strict_type = ((ColumnRef *) a->lexpr)->typeName != NULL;
+    result->resulttype = result->strict_type == false ? exprType(result->arg) :
+                                                        typenameTypeId(pstate, ((ColumnRef *) a->lexpr)->typeName);
+    if(result->strict_type)
+        result->arg = coerce_type(NULL,
+                                  (Node *) result->arg,
+                                  exprType(result->arg),
+                                  result->resulttype,
+                                  -1,
+                                  COERCION_IMPLICIT,
+                                  COERCE_IMPLICIT_CAST,
+                                  -1);
+    
     result->collid = exprCollation(result->arg);
     result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
     result->location = a->location;
