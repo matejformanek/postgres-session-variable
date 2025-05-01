@@ -365,6 +365,90 @@ MERGE INTO products p USING new_products n ON p.product_no = n.product_no
    the triggers.  Thus, inspecting columns computed by triggers is another
    common use-case for <literal>RETURNING</literal>.
   </para>
+  </sect1>
 
- </sect1>
+  <sect1 id="dml-session-variables">
+    <title>Session Variables</title>
+    
+    <indexterm zone="dml-session-variables">
+     <primary>Session variables</primary>
+    </indexterm>
+    
+    <indexterm>
+     <primary>session variables</primary>
+    </indexterm>
+    
+    <para> 
+    Session variables are session-scoped objects that hold values accessible only within the session
+    in which they are defined. These variables are non-transactional, meaning their states are independent
+    of transaction boundaries and are not rolled back in case of transaction failure.
+    They are lightweight and primarily used for temporary data storage during the lifetime of a session.
+    </para>
+     
+    <para>
+    Session variables can be initialized or updated by <xref linkend="sql-set-session-variable"/> which 
+    allows assigning via <command>SET</command> command or a <command>SELECT</command> statement.
+    They must follow the syntax of a leading <literal>@</literal> character, such as <literal>@var</literal>,
+    to be recognized as session variables. This ensures clear differentiation from other database objects like
+    column names or local variables. Moreover, multiple session variables can be assigned values within
+    a single statement, offering convenience for batch operations or multi-variable initialization.
+    Note that to assign the variable you have to use a colon-equal <literal>:=</literal>.
+<programlisting>
+SET @var_int := 5,
+    @var_date := '2024-01-01';
+    
+-- Equivalent to
+
+SELECT @var_int := 5,
+       @var_date := '2024-01-01';
+</programlisting>
+    </para>
+    
+    <para>
+    Their flexibility allows dynamic creation and modification without strict type declarations.
+    The values assigned to session variables are implicitly typed based on the value assigned,
+    and they can seamlessly store and handle diverse data types such as numbers, strings, and dates.
+    </para>
+    
+    <para>
+    Session variables allow self-referential updates, making them useful for incrementing or modifying
+    their value in-place. For example, using the <command>SET</command> command, a variable can reference its current
+    value during an update: 
+<programlisting>
+SET @a := @a + 1;
+</programlisting>
+    This capability facilitates scenarios such as counter increments or accumulating totals
+    without requiring additional storage objects or explicit loops.
+    </para>
+    
+    <para>
+    Moreover you can reference a session variable that has been just initiated in the same chain, 
+    but of course the referenced variable has to be declared inside the chain sooner than it is referenced.
+    This way you can leverage the parametrization already in the initialization phase.  
+<programlisting>
+SET @a := 1,
+    @b := @a * 5,
+    @c := @b::INT - @a;
+</programlisting>
+    </para>
+    
+    <para>
+    Session variables can also be used as cumulative aggregators within a query,
+    particularly in constructs like <command>SELECT</command>. For example, the syntax: 
+<programlisting>
+SELECT @a := @a + col
+</programlisting>
+    allows a session variable to maintain a running total while iterating over rows in a result set.
+    This is especially useful for generating cumulative sums on-the-fly
+    without modifying the underlying data or creating temporary tables.
+    </para>
+    
+    <para>
+    Since session variables are designed to operate in memory, they offer excellent performance
+    for temporary data handling. However, their lack of persistence and transactional guarantees means
+    they are unsuitable for storing critical or durable data.
+    Once the session ends, the memory associated with these variables is released, and their values are lost.
+    </para>
+  </sect1>
+ 
 </chapter>

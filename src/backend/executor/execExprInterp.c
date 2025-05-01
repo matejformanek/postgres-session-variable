@@ -59,6 +59,7 @@
 #include "access/heaptoast.h"
 #include "catalog/pg_type.h"
 #include "commands/sequence.h"
+#include "commands/sessionvariable.h"
 #include "executor/execExpr.h"
 #include "executor/nodeSubplan.h"
 #include "funcapi.h"
@@ -423,6 +424,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 		&&CASE_EEOP_ASSIGN_TMP,
 		&&CASE_EEOP_ASSIGN_TMP_MAKE_RO,
 		&&CASE_EEOP_CONST,
+        &&CASE_EEOP_SESVAREXPR,
 		&&CASE_EEOP_FUNCEXPR,
 		&&CASE_EEOP_FUNCEXPR_STRICT,
 		&&CASE_EEOP_FUNCEXPR_FUSAGE,
@@ -450,6 +452,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 		&&CASE_EEOP_PARAM_EXEC,
 		&&CASE_EEOP_PARAM_EXTERN,
 		&&CASE_EEOP_PARAM_CALLBACK,
+		&&CASE_EEOP_PARAM_SESVAR,
 		&&CASE_EEOP_PARAM_SET,
 		&&CASE_EEOP_CASE_TESTVAL,
 		&&CASE_EEOP_MAKE_READONLY,
@@ -1098,6 +1101,62 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 			op->d.cparam.paramfunc(state, op, econtext);
 			EEO_NEXT();
 		}
+
+        EEO_CASE(EEOP_SESVAREXPR)
+        {
+            Datum arg_value;
+            bool arg_isnull;
+            Oid typeOid;
+            int16 typLen;
+            bool typByVal;
+
+            /* Arg was evaluated in previous step */
+            ExprEvalStep *hold = op - 1;
+            arg_value = *hold->resvalue;
+            arg_isnull = *hold->resnull;
+            
+            /* Get necessarily data for saving variable */
+            typeOid = op->d.sesvar.sesvartype;
+            get_typlenbyval(typeOid, &typLen, &typByVal);
+            
+            /* Set the new value to session variable */
+            setSessionVariable(op->d.sesvar.sesvarid,
+                               makeConstSessionVariable(typeOid,
+                                                        -1,
+                                                        op->d.sesvar.sesvarcollid,
+                                                        typByVal,
+                                                        typLen,
+                                                        arg_isnull,
+                                                        arg_value));
+            
+            /* Output value */
+            *op->resvalue = arg_value;
+            *op->resnull = arg_isnull;
+            
+            EEO_NEXT();
+        }
+        
+        EEO_CASE(EEOP_PARAM_SESVAR)
+        {
+            /*
+             * op->d.sesvar.sesvartype Contains type requested by the query
+             * The value itself can be save with unknownoid and just
+             * here we try to match it to the requested type oid
+             **/
+            Const *con = getConstSessionVariable(op->d.sesvar.sesvarid, op->d.sesvar.sesvartype);
+            
+            if(!con) {
+                elog(ERROR, "session variable \"%s\" does not exist", op->d.sesvar.sesvarid);
+            } else if(con->constisnull == false) {
+                *op->resvalue = datumCopy(con->constvalue, con->constbyval, con->constlen);
+                *op->resnull = false;
+            } else {
+                *op->resvalue = (Datum) 0;
+                *op->resnull = true;
+            }
+            
+            EEO_NEXT();
+        }
 
 		EEO_CASE(EEOP_PARAM_SET)
 		{

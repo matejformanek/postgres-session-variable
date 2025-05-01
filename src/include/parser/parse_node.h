@@ -17,6 +17,7 @@
 #include "nodes/parsenodes.h"
 #include "utils/queryenvironment.h"
 #include "utils/relcache.h"
+#include "utils/hsearch.h"
 
 
 /* Forward references for some structs declared below */
@@ -246,6 +247,11 @@ struct ParseState
 	bool		p_hasModifyingCTE;
 
 	Node	   *p_last_srf;		/* most recent set-returning func/op found */
+    HTAB       *sesvar_changes; /* Saves the type and collid of sesvar. Serves for 2 purposes
+                                 * a) Remember the type of previously defined sesvar even if it is not yet saved in 
+                                 *    memory -> this way we can add type to it if it is mentioned again inline
+                                 * b) If the type is changed and then referenced again inline we need to provide the
+                                 *    changed type not the one saved in memory. */
 
 	/*
 	 * Optional hook functions for parser callbacks.  These are null unless
@@ -354,6 +360,13 @@ typedef struct ParseCallbackState
 	int			location;
 	ErrorContextCallback errcallback;
 } ParseCallbackState;
+
+#define SESVAR_SIZE (NAMEDATALEN + 1)
+
+typedef struct sessionVariable {
+    char key[SESVAR_SIZE];
+    Node *expr;
+} sessionVariable;
 
 
 extern ParseState *make_parsestate(ParseState *parentParseState);

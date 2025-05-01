@@ -1809,7 +1809,10 @@ FigureColnameInternal(Node *node, char **name)
 				/* make nullif() act like a regular function */
 				*name = "nullif";
 				return 2;
-			}
+			} else if(((A_Expr *) node)->kind == AEXPR_SESSION_VARIABLE) {
+                *name = strVal((Node *) linitial(((ColumnRef *) ((A_Expr *) node)->lexpr)->fields));
+                return 2;
+            }
 			break;
 		case T_TypeCast:
 			strength = FigureColnameInternal(((TypeCast *) node)->arg,

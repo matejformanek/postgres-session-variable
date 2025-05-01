@@ -326,6 +326,7 @@ typedef enum A_Expr_Kind
 	AEXPR_NOT_BETWEEN,			/* name must be "NOT BETWEEN" */
 	AEXPR_BETWEEN_SYM,			/* name must be "BETWEEN SYMMETRIC" */
 	AEXPR_NOT_BETWEEN_SYM,		/* name must be "NOT BETWEEN SYMMETRIC" */
+    AEXPR_SESSION_VARIABLE,     /* session variable assignment @var := a_expr */
 } A_Expr_Kind;
 
 typedef struct A_Expr
@@ -2661,21 +2662,17 @@ typedef struct VariableShowStmt
 
 /* ----------------------
  * SET session variable
+ * 
+ * SET @varname := expr [, var_name := expr ] ...
+ * Allows us to set multiple user-defined session variables.
  * ----------------------
  */
 
-typedef struct sessionVariableDef
+typedef struct SetSessionVariableStmt
 {
     NodeTag		type;
-    char	   *name;
-    Node       *expr;
-} sessionVariableDef;
-
-typedef struct SessionVariableStmt
-{
-    NodeTag		type;
-    List	   *variables; /* List of sessionVariableDef */
-} SessionVariableStmt;
+    List	   *variables; /* List of ResTarget */
+} SetSessionVariableStmt;
 
 /* ----------------------
  *		Create Table Statement

@@ -115,6 +115,7 @@ static void ScanQueryForLocks(Query *parsetree, bool acquire);
 static bool ScanQueryWalker(Node *node, bool *acquire);
 static TupleDesc PlanCacheComputeResultDesc(List *stmt_list);
 static void PlanCacheRelCallback(Datum arg, Oid relid);
+static void PlanCacheSesvarCallback(const char *name);
 static void PlanCacheObjectCallback(Datum arg, int cacheid, uint32 hashvalue);
 static void PlanCacheSysCallback(Datum arg, int cacheid, uint32 hashvalue);
 
@@ -162,6 +163,7 @@ InitPlanCache(void)
 	CacheRegisterSyscacheCallback(AMOPOPID, PlanCacheSysCallback, (Datum) 0);
 	CacheRegisterSyscacheCallback(FOREIGNSERVEROID, PlanCacheSysCallback, (Datum) 0);
 	CacheRegisterSyscacheCallback(FOREIGNDATAWRAPPEROID, PlanCacheSysCallback, (Datum) 0);
+    CacheRegisterSesvarcacheCallback(PlanCacheSesvarCallback);
 }
 
 /*
@@ -419,6 +421,7 @@ CompleteCachedPlan(CachedPlanSource *plansource,
 		 */
 		extract_query_dependencies((Node *) querytree_list,
 								   &plansource->relationOids,
+								   &plansource->relationSesVars,
 								   &plansource->invalItems,
 								   &plansource->dependsOnRLS);
 
@@ -772,6 +775,7 @@ RevalidateCachedQuery(CachedPlanSource *plansource,
 	 */
 	extract_query_dependencies((Node *) qlist,
 							   &plansource->relationOids,
+							   &plansource->relationSesVars,
 							   &plansource->invalItems,
 							   &plansource->dependsOnRLS);
 
@@ -1972,6 +1976,47 @@ PlanCacheComputeResultDesc(List *stmt_list)
 			break;
 	}
 	return NULL;
+}
+
+/*
+ * PlanCacheSesVarInvalidation
+ *		Sesvar invalidation function
+ *
+ * Invalidate all plans mentioning the given session variable
+ */
+static void
+PlanCacheSesvarCallback(const char *name){
+    dlist_iter	iter;
+
+    dlist_foreach(iter, &saved_plan_list)
+    {
+        ListCell *lc;
+        CachedPlanSource *plansource = dlist_container(CachedPlanSource,
+                                                       node, iter.cur);
+
+        /* If there's none sesvar -> nothing to do */
+        if(plansource->relationSesVars == NIL)
+            continue;
+        
+        Assert(plansource->magic == CACHEDPLANSOURCE_MAGIC);
+
+        /* No work if it's already invalidated */
+        if (!plansource->is_valid)
+            continue;
+
+        /* Never invalidate if parse/plan would be a no-op anyway */
+        if (!StmtPlanRequiresRevalidation(plansource))
+            continue;
+
+        /* If the plan depends on given sesvar -> Invalidate it */
+        foreach (lc, plansource->relationSesVars)
+        {
+            char *item = (char *) lfirst(lc);
+            
+            if (strcmp(item, name) == 0)
+                plansource->is_valid = false;
+        }
+    }
 }
 
 /*

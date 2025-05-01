@@ -1019,6 +1019,12 @@ ExecInitExprRec(Expr *node, ExprState *state,
 							ExprEvalPushStep(state, &scratch);
 						}
 						break;
+                    case PARAM_SESSION_VARIABLE:
+                        scratch.opcode = EEOP_PARAM_SESVAR;
+                        scratch.d.sesvar.sesvarid = param->paramsesvarid;
+                        scratch.d.sesvar.sesvartype = param->paramtype;
+                        ExprEvalPushStep(state, &scratch);
+                        break;
 					default:
 						elog(ERROR, "unrecognized paramkind: %d",
 							 (int) param->paramkind);
@@ -1160,6 +1166,23 @@ ExecInitExprRec(Expr *node, ExprState *state,
 				ExprEvalPushStep(state, &scratch);
 				break;
 			}
+
+        case T_SesVarExpr:
+            {
+                SesVarExpr *sesvar = (SesVarExpr *) node;
+
+                scratch.opcode = EEOP_SESVAREXPR;
+                scratch.d.sesvar.sesvarid = sesvar->name;
+                scratch.d.sesvar.sesvartype = sesvar->resulttype;
+                scratch.d.sesvar.sesvarcollid = sesvar->collid;
+                
+                ExecInitExprRec((Expr *) sesvar->arg, state,
+                                resv,
+                                resnull);
+
+                ExprEvalPushStep(state, &scratch);
+                break;
+            }
 
 		case T_DistinctExpr:
 			{

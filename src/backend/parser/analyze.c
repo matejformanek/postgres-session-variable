@@ -61,6 +61,7 @@ post_parse_analyze_hook_type post_parse_analyze_hook = NULL;
 static Query *transformOptionalSelectInto(ParseState *pstate, Node *parseTree);
 static Query *transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt);
 static Query *transformInsertStmt(ParseState *pstate, InsertStmt *stmt);
+static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt);
 static OnConflictExpr *transformOnConflictClause(ParseState *pstate,
 												 OnConflictClause *onConflictClause);
 static int	count_rowexpr_columns(ParseState *pstate, Node *expr);
@@ -414,6 +415,7 @@ transformStmt(ParseState *pstate, Node *parseTree)
 			case T_UpdateStmt:
 			case T_DeleteStmt:
 			case T_MergeStmt:
+            case T_SetSessionVariableStmt:
 				(void) test_raw_expression_coverage(parseTree, NULL);
 				break;
 			default:
@@ -435,6 +437,10 @@ transformStmt(ParseState *pstate, Node *parseTree)
 		case T_InsertStmt:
 			result = transformInsertStmt(pstate, (InsertStmt *) parseTree);
 			break;
+
+        case T_SetSessionVariableStmt:
+            result = transformSetSessionVariableStmt(pstate, (SetSessionVariableStmt *) parseTree);
+            break;
 
 		case T_DeleteStmt:
 			result = transformDeleteStmt(pstate, (DeleteStmt *) parseTree);
@@ -543,6 +549,7 @@ stmt_requires_parse_analysis(RawStmt *parseTree)
 		case T_UpdateStmt:
 		case T_MergeStmt:
 		case T_SelectStmt:
+        case T_SetSessionVariableStmt:
 		case T_ReturnStmt:
 		case T_PLAssignStmt:
 			result = true;
@@ -661,6 +668,31 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
 		parseCheckAggregates(pstate, qry);
 
 	return qry;
+}
+
+/*
+ * transformSetSessionVariableStmt -
+ *	  transform an SET @var := expr [, @var := expr]
+ *	  Session variables
+ */
+static Query *transformSetSessionVariableStmt(ParseState *pstate, SetSessionVariableStmt *stmt)
+{
+    Query	   *qry = makeNode(Query);
+
+    qry->commandType = CMD_SET_SESSION_VARIABLE;
+    pstate->p_is_insert = false;
+
+    qry->targetList = transformTargetList(pstate, stmt->variables,
+                                          EXPR_KIND_SELECT_TARGET);
+
+    qry->hasSubLinks = pstate->p_hasSubLinks;
+    qry->jointree = makeNode(FromExpr);
+    qry->jointree->quals = NULL;
+    qry->jointree->fromlist = NIL;
+
+    assign_query_collations(pstate, qry);
+
+    return qry;
 }
 
 /*

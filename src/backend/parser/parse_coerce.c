@@ -369,6 +369,42 @@ coerce_type(ParseState *pstate, Node *node,
 
 		return result;
 	}
+    /*
+     * Both SesVarExpr and PARAM_SESSION_VARIABLE do NOT have a defined type
+     * But when outputting/working with the value we need to define and coerce one ->
+     * We save the required type here inside the node and later in the execution phase
+     * coerce the session variables value itself to it.
+     **/
+    if(IsA(node, SesVarExpr)){
+        SesVarExpr *sesvar = (SesVarExpr *) node;
+        /* Set the required type for future parsing */
+        sesvar->resulttype = targetTypeId;
+        
+        /*
+         * Make sure the SESVAR argument that we propagate further as it's value
+         * is coerced to the required type
+         * 
+         * This also saves us possible repeated coercion in Exec
+         **/
+        if(targetTypeId != exprType(sesvar->arg))
+            sesvar->arg = coerce_type(NULL,
+                                      (Node *) sesvar->arg,
+                                      exprType(sesvar->arg),
+                                      targetTypeId,
+                                      -1,
+                                      COERCION_IMPLICIT,
+                                      COERCE_IMPLICIT_CAST,
+                                      -1);
+
+        return (Node *) sesvar;
+    }
+    if(IsA(node, Param) && ((Param *) node)->paramkind == PARAM_SESSION_VARIABLE){
+        Param *param = (Param *) node;
+        /* Set the required type for future parsing */
+        param->paramtype = targetTypeId;
+
+        return (Node *) param;
+    }
 	if (IsA(node, Param) &&
 		pstate != NULL && pstate->p_coerce_param_hook != NULL)
 	{

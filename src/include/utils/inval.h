@@ -22,6 +22,7 @@ extern PGDLLIMPORT int debug_discard_caches;
 
 typedef void (*SyscacheCallbackFunction) (Datum arg, int cacheid, uint32 hashvalue);
 typedef void (*RelcacheCallbackFunction) (Datum arg, Oid relid);
+typedef void (*SesvarcacheCallbackFunction) (const char *name);
 
 
 extern void AcceptInvalidationMessages(void);
@@ -64,6 +65,10 @@ extern void CacheRegisterSyscacheCallback(int cacheid,
 
 extern void CacheRegisterRelcacheCallback(RelcacheCallbackFunction func,
 										  Datum arg);
+
+extern void CacheRegisterSesvarcacheCallback(SesvarcacheCallbackFunction func);
+
+extern void InvalidateSesvarCache(char *arg);
 
 extern void CallSyscacheCallbacks(int cacheid, uint32 hashvalue);
 

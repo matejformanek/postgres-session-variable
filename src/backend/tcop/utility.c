@@ -107,6 +107,7 @@ CommandIsReadOnly(PlannedStmt *pstmt)
 		case CMD_INSERT:
 		case CMD_DELETE:
 		case CMD_MERGE:
+        case CMD_SET_SESSION_VARIABLE:
 			return false;
 		case CMD_UTILITY:
 			/* For now, treat all utility commands as read/write */
@@ -257,6 +258,7 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 
 		case T_ClosePortalStmt:
 		case T_ConstraintsSetStmt:
+        case T_SetSessionVariableStmt:
 		case T_DeallocateStmt:
 		case T_DeclareCursorStmt:
 		case T_DiscardStmt:
@@ -2392,6 +2394,10 @@ CreateCommandTag(Node *parsetree)
 			tag = CMDTAG_SELECT;
 			break;
 
+        case T_SetSessionVariableStmt:
+            tag = CMDTAG_SET_SESSION_VARIABLE;
+            break;
+            
 			/* utility statements --- same whether raw or cooked */
 		case T_TransactionStmt:
 			{
@@ -3138,6 +3144,9 @@ CreateCommandTag(Node *parsetree)
 					case CMD_UPDATE:
 						tag = CMDTAG_UPDATE;
 						break;
+                    case CMD_SET_SESSION_VARIABLE:
+                        tag = CMD_SET_SESSION_VARIABLE;
+                        break;
 					case CMD_INSERT:
 						tag = CMDTAG_INSERT;
 						break;
@@ -3707,6 +3716,7 @@ GetCommandLogLevel(Node *parsetree)
 
 					case CMD_UPDATE:
 					case CMD_INSERT:
+					case CMD_SET_SESSION_VARIABLE:
 					case CMD_DELETE:
 					case CMD_MERGE:
 						lev = LOGSTMT_MOD;

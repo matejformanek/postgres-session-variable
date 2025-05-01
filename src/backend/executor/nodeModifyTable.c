@@ -67,6 +67,7 @@
 #include "storage/lmgr.h"
 #include "utils/builtins.h"
 #include "utils/datum.h"
+#include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/snapmgr.h"
 

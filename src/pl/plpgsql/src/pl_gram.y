@@ -3570,6 +3570,25 @@ read_into_target(PLpgSQL_variable **target, bool *strict)
 			}
 			break;
 
+        case SESSION_VAR_NAME:
+            /*
+             * Represent SESVAR like a plpgsql variable
+             */
+            PLpgSQL_variable *var;
+
+            var = plpgsql_build_variable((char *) yylval.wdatum.datum, plpgsql_location_to_lineno(yylloc),
+                                         plpgsql_build_datatype(TEXTOID,
+                                                                -1,
+                                                                InvalidOid,
+                                                                NULL),
+                                         true);
+            var->isconst = false;
+                                   
+            *target = (PLpgSQL_variable *)
+                read_into_scalar_list(var->refname,
+                                      (PLpgSQL_datum *) var, var->dno);     
+            break;
+
 		default:
 			/* just to give a better message than "syntax error" */
 			current_token_is_not_variable(tok);
@@ -3622,6 +3641,24 @@ read_into_scalar_list(char *initial_name,
 				fieldnames[nfields] = NameOfDatum(&(yylval.wdatum));
 				varnos[nfields++]	= yylval.wdatum.datum->dno;
 				break;
+				
+            case SESSION_VAR_NAME:
+                /*
+                 * Represent SESVAR like a plpgsql variable
+                 */
+                PLpgSQL_variable *var;
+                            
+                var = plpgsql_build_variable((char *) yylval.wdatum.datum, plpgsql_location_to_lineno(yylloc),
+                                             plpgsql_build_datatype(TEXTOID,
+                                                                    -1,
+                                                                    InvalidOid,
+                                                                    NULL),
+                                             true);
+                var->isconst = false;
+                
+                fieldnames[nfields] = var->refname;
+                varnos[nfields++]	= var->dno;
+                break;
 
 			default:
 				/* just to give a better message than "syntax error" */

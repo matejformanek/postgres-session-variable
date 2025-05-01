@@ -98,6 +98,7 @@ typedef struct _SPI_plan *SPIPlanPtr;
 #define SPI_OK_TD_REGISTER		17
 #define SPI_OK_MERGE			18
 #define SPI_OK_MERGE_RETURNING	19
+#define SPI_OK_SET_SESSION_VARIABLE 20
 
 #define SPI_OPT_NONATOMIC		(1 << 0)
 

@@ -98,6 +98,7 @@
 #include "executor/nodeMergeAppend.h"
 #include "executor/nodeMergejoin.h"
 #include "executor/nodeModifyTable.h"
+#include "executor/nodeModifySessionVariable.h"
 #include "executor/nodeNamedtuplestorescan.h"
 #include "executor/nodeNestloop.h"
 #include "executor/nodeProjectSet.h"
@@ -177,6 +178,11 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 			result = (PlanState *) ExecInitModifyTable((ModifyTable *) node,
 													   estate, eflags);
 			break;
+
+        case T_ModifySessionVariable:
+            result = (PlanState *) ExecInitSetSessionVariable((ModifySessionVariable *) node,
+                                                       estate, eflags);
+            break;
 
 		case T_Append:
 			result = (PlanState *) ExecInitAppend((Append *) node,
@@ -596,7 +602,11 @@ ExecEndNode(PlanState *node)
 		case T_ModifyTableState:
 			ExecEndModifyTable((ModifyTableState *) node);
 			break;
-
+            
+        case T_ModifySessionVariableState:
+            ExecEndSetSessionVariable((ModifySessionVariableState *) node);
+            break;
+            
 		case T_AppendState:
 			ExecEndAppend((AppendState *) node);
 			break;

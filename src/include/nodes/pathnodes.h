@@ -131,6 +131,9 @@ typedef struct PlannerGlobal
 	/* OIDs of relations the plan depends on */
 	List	   *relationOids;
 
+    /* List of dependent SESVAR for dynamic type invalidation */
+    List       *relationSesVars;
+    
 	/* other dependencies, as PlanInvalItems */
 	List	   *invalItems;
 

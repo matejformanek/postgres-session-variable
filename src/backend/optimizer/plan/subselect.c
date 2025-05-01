@@ -2610,7 +2610,10 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 				}
 			}
 			break;
-
+        
+        case T_ModifySessionVariable:
+            break;
+        
 		case T_ModifyTable:
 			{
 				ModifyTable *mtplan = (ModifyTable *) plan;

@@ -1,0 +1,134 @@
+<!--
+doc/src/sgml/ref/set.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-set-session-variable">
+ <indexterm zone="sql-set-session-variable">
+  <primary>SET SESSION VARIABLE</primary>
+ </indexterm>
+ 
+ <indexterm>
+  <primary>session variable</primary>
+ </indexterm>
+ 
+ <refmeta>
+  <refentrytitle>SET SESSION VARIABLE</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+ 
+ <refnamediv>
+  <refname>SET SESSION VARIABLE</refname>
+  <refpurpose>Set an expression to a session variable</refpurpose>
+ </refnamediv>
+ 
+ <refsynopsisdiv>
+<synopsis>
+[ SET | SELECT ] <replaceable class="parameter">@name</replaceable> := <replaceable class="parameter">expression</replaceable> 
+    [, <replaceable class="parameter">@name</replaceable> := <replaceable class="parameter">expression</replaceable>] ...
+</synopsis>
+ </refsynopsisdiv>
+ 
+ <refsect1>
+  <title>Description</title>
+  <para>
+   Set a new value to a session variable.
+   Rewrites the current value if any set.
+  </para>
+  
+  <para>
+  Allow self-referential updates, making them useful for incrementing or modifying
+  their value in-place.
+  </para>
+  
+  <para>
+  Can also be used as cumulative aggregators within a query  
+  </para>
+ </refsect1>
+ 
+ <refsect1>
+  <title>Parameters</title>
+  
+  <variablelist>
+  
+   <varlistentry>
+    <term><replaceable class="parameter">@name</replaceable></term>
+    <listitem>
+     <para>
+      The <literal>@</literal> prefixed name of a session variable.
+     </para>
+    </listitem>
+   </varlistentry>
+   
+   <varlistentry>
+    <term><replaceable class="parameter">expression</replaceable></term>
+    <listitem>
+     <para>
+      An expression or value to assign to the corresponding column.
+     </para>
+    </listitem>
+   </varlistentry>
+   
+  </variablelist>
+  
+ </refsect1>
+ 
+ <refsect1>
+  <title>Outputs</title>
+
+  <para>
+   Only if the <command>SELECT</command> command is used, then the newly assigned value is returned.
+   If used in a query with multiple rows/assignments each row will return a newly assigned value.
+  </para>
+ </refsect1> 
+ 
+ <refsect1>
+  <title>Examples</title>
+  
+  <para>
+   To set the session variable <literal>var</literal>:
+<programlisting>
+SET @var := 1;
+</programlisting>
+  </para>
+  
+  <para>
+  To increase the session variable <literal>var</literal> by 5:
+<programlisting>
+SET @var := 1;
+
+SET @var := @var + 5;
+</programlisting>
+  </para>
+  
+  <para>
+  Parametrized initialization = Referencing session variables that were initialized earlier in the same chain.
+<programlisting>
+SET @a := 1,
+    @b := @a * 5,
+    @c := @b::INT - @a;
+</programlisting>
+  </para>
+  
+  <para>
+  To set the session variable <literal>var</literal> using cumulative sum:
+<programlisting>
+SET @var := 0;
+
+SELECT @var := @var + employee.salary 
+FROM employee;
+</programlisting>
+    </para>
+ </refsect1>
+ 
+ <refsect1>
+  <title>Compatibility</title>
+  
+  <para>
+   The <command>SET SESSION VARIABLE</command> command is a
+   <productname>PostgreSQL</productname> extension.
+  </para>
+ </refsect1>
+ 
+</refentry>

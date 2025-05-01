@@ -39,6 +39,7 @@
 #include "utils/lsyscache.h"
 #include "utils/timestamp.h"
 #include "utils/xml.h"
+#include "commands/sessionvariable.h"
 
 /* GUC parameters */
 bool		Transform_null_equals = false;
@@ -53,6 +54,7 @@ static Node *transformAExprDistinct(ParseState *pstate, A_Expr *a);
 static Node *transformAExprNullIf(ParseState *pstate, A_Expr *a);
 static Node *transformAExprIn(ParseState *pstate, A_Expr *a);
 static Node *transformAExprBetween(ParseState *pstate, A_Expr *a);
+static Node *transformAExprSessionVariable(ParseState *pstate, A_Expr *a);
 static Node *transformMergeSupportFunc(ParseState *pstate, MergeSupportFunc *f);
 static Node *transformBoolExpr(ParseState *pstate, BoolExpr *a);
 static Node *transformFuncCall(ParseState *pstate, FuncCall *fn);
@@ -211,6 +213,9 @@ transformExprRecurse(ParseState *pstate, Node *expr)
 					case AEXPR_NOT_BETWEEN_SYM:
 						result = transformAExprBetween(pstate, a);
 						break;
+                    case AEXPR_SESSION_VARIABLE:
+                        result = transformAExprSessionVariable(pstate, a);
+                        break;
 					default:
 						elog(ERROR, "unrecognized A_Expr kind: %d", a->kind);
 						result = NULL;	/* keep compiler quiet */
@@ -579,10 +584,12 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 			break;
 
 		case EXPR_KIND_COLUMN_DEFAULT:
-			err = _("cannot use column reference in DEFAULT expression");
+            if(strVal(linitial(cref->fields))[0] != '@')
+			    err = _("cannot use column reference in DEFAULT expression");
 			break;
 		case EXPR_KIND_PARTITION_BOUND:
-			err = _("cannot use column reference in partition bound expression");
+            if(strVal(linitial(cref->fields))[0] != '@')
+                err = _("cannot use column reference in partition bound expression");
 			break;
 
 			/*
@@ -664,6 +671,19 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 						node = transformWholeRowRef(pstate, nsitem, levels_up,
 													cref->location);
 				}
+
+                /* The reference is a SESSION VARIABLE */
+                if(node == NULL && colname[0] == '@') {
+                    sessionVariable *ref;
+                    node = (Node *) getParamSessionVariable(colname);
+
+                    /* If the sesvar was previously mentioned make sure we get the most actual type */
+                    ref = (sessionVariable *) hash_search(pstate->sesvar_changes, colname, HASH_FIND, NULL);
+                    if(ref) {
+                        ((Param *) node)->paramtype = ((Param *) ref->expr)->paramtype;
+                        ((Param *) node)->paramcollid = ((Param *) ref->expr)->paramcollid;
+                    }
+                }
 				break;
 			}
 		case 2:
@@ -1370,6 +1390,35 @@ transformAExprBetween(ParseState *pstate, A_Expr *a)
 	}
 
 	return transformExprRecurse(pstate, result);
+}
+
+static Node *
+transformAExprSessionVariable(ParseState *pstate, A_Expr *a)
+{
+    SesVarExpr *result = makeNode(SesVarExpr);
+    sessionVariable *ref;
+    bool found;
+    
+    result->arg = transformExprRecurse(pstate, a->rexpr);
+    result->resulttype = exprType(result->arg);
+    result->collid = exprCollation(result->arg);
+    result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
+    result->location = a->location;
+
+    /* Save the possibly altered type to the pstate->sesvar_changes */
+    ref = (sessionVariable *) hash_search(pstate->sesvar_changes, result->name, HASH_ENTER_NULL, &found);
+    if(found) {
+        ((Param *) ref->expr)->paramtype = result->resulttype;
+        ((Param *) ref->expr)->paramcollid = result->collid;
+    } else {
+        Param *param = makeNode(Param);
+        param->paramtype = result->resulttype;
+        param->paramcollid = result->collid;
+        
+        ref->expr = (Node *) param;
+    }
+    
+    return (Node *) result;
 }
 
 static Node *

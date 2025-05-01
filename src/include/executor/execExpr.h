@@ -103,6 +103,10 @@ typedef enum ExprEvalOp
 	/* evaluate Const value */
 	EEOP_CONST,
 
+    
+    /* Evaluate and save session variable */
+    EEOP_SESVAREXPR,
+    
 	/*
 	 * Evaluate function call (including OpExprs etc).  For speed, we
 	 * distinguish in the opcode whether the function is strict and/or
@@ -160,6 +164,7 @@ typedef enum ExprEvalOp
 	EEOP_PARAM_EXEC,
 	EEOP_PARAM_EXTERN,
 	EEOP_PARAM_CALLBACK,
+    EEOP_PARAM_SESVAR,
 	/* set PARAM_EXEC value */
 	EEOP_PARAM_SET,
 
@@ -399,6 +404,14 @@ typedef struct ExprEvalStep
 			int			paramid;	/* numeric ID for parameter */
 			Oid			paramtype;	/* OID of parameter's datatype */
 		}			param;
+
+        /* for EEOP_PARAM_SESVAR */
+        struct
+        {
+            char	    *sesvarid;	    /* char* ID for sesvar */
+            Oid			 sesvartype;	/* OID of sesvar's datatype */
+            Oid			 sesvarcollid;	/* OID of sesvar's collation */
+        }			sesvar;
 
 		/* for EEOP_PARAM_CALLBACK */
 		struct

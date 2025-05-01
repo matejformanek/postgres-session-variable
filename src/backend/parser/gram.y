@@ -292,7 +292,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateFunctionStmt AlterFunctionStmt ReindexStmt RemoveAggrStmt
 		RemoveFuncStmt RemoveOperStmt RenameStmt ReturnStmt RevokeStmt RevokeRoleStmt
 		RuleActionStmt RuleActionStmtOrEmpty RuleStmt
-		SecLabelStmt SelectStmt SessionVariableStmt TransactionStmt TransactionStmtLegacy TruncateStmt
+		SecLabelStmt SelectStmt SetSessionVariableStmt TransactionStmt TransactionStmtLegacy TruncateStmt
 		UnlistenStmt UpdateStmt VacuumStmt
 		VariableResetStmt VariableSetStmt VariableShowStmt
 		ViewStmt CheckPointStmt CreateConversionStmt
@@ -439,7 +439,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 				vacuum_relation_list opt_vacuum_relation_list
 				drop_option_list pub_obj_list session_variable_list
 
-%type <node>	opt_routine_body sessionVariableDef
+%type <node>	opt_routine_body SetSessionVariableItem
 %type <groupclause> group_clause
 %type <list>	group_by_list
 %type <node>	group_by_item empty_grouping_set rollup_clause cube_clause
@@ -510,7 +510,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <node>	columnDef columnOptions optionalPeriodName
 %type <defelt>	def_elem reloption_elem old_aggr_elem operator_def_elem
 %type <node>	def_arg columnElem where_clause where_or_current_clause
-				a_expr b_expr c_expr AexprConst indirection_el opt_slice_bound
+				a_expr b_expr c_expr AexprConst indirection_el indirection_arr opt_slice_bound
 				columnref in_expr having_clause func_table xmltable array_expr
 				OptWhereClause operator_def_arg session_var_name_ref
 %type <list>	opt_column_and_period_list
@@ -1093,7 +1093,7 @@ stmt:
 			| RuleStmt
 			| SecLabelStmt
 			| SelectStmt
-			| SessionVariableStmt
+			| SetSessionVariableStmt
 			| TransactionStmt
 			| TruncateStmt
 			| UnlistenStmt
@@ -2030,42 +2030,62 @@ CheckPointStmt:
  *
  * SET @variable_name := expr [, @variable_name := expr ]
  *
+ * SET multiple user-defined session variables.
+ *
+ * Note: thanks to using SESSION_VAR_NAME we could even use '=' 
+ * without conflicts but only COLON_EQUALS makes it cleaner.
+ * Also there is a lot of similarities between session variable and
+ * table column like Def and Ref non-terminals or expr parsing.
  *****************************************************************************/
 
-SessionVariableStmt:
+SetSessionVariableStmt:
             SET session_variable_list
                 {
-                    SessionVariableStmt *n = makeNode(SessionVariableStmt);
+                    SetSessionVariableStmt *n = makeNode(SetSessionVariableStmt);
                     n->variables = $2;
                     $$ = (Node *) n;
                 }
         ;
 
 session_variable_list:
-            sessionVariableDef
+            SetSessionVariableItem
                 {
                     $$ = list_make1($1);
                 }
-            | session_variable_list ',' sessionVariableDef
+            | session_variable_list ',' SetSessionVariableItem
                 {
                     $$ = lappend($1, $3);
                 }
         ;
 
-sessionVariableDef:
+SetSessionVariableItem:
             SESSION_VAR_NAME COLON_EQUALS a_expr
                 {
-                    sessionVariableDef *n = makeNode(sessionVariableDef);
+                    ResTarget *n = makeNode(ResTarget);
                     n->name = $1;
-                    n->expr = $3;
+                    n->indirection = NIL;
+                    n->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
+                    n->location = @3;
                     $$ = (Node *) n;
                 }
         ;
 
+/**
+ * Equivalent of columnRef for variables -> session variable
+ * is a "special column" in the parser life cycle.  
+ */
 session_var_name_ref:
             SESSION_VAR_NAME
                 {
                     $$ = makeColumnRef($1, NIL, @1, yyscanner);
+                }
+            | SESSION_VAR_NAME indirection_arr
+                {
+                    $$ = makeColumnRef($1, list_make1($2), @1, yyscanner);
+                }
+            | SESSION_VAR_NAME COLON_EQUALS a_expr %prec IS
+                {
+                    $$ = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
                 }
         ;
 
@@ -16859,7 +16879,14 @@ indirection_el:
 				{
 					$$ = (Node *) makeNode(A_Star);
 				}
-			| '[' a_expr ']'
+			| indirection_arr
+			    {
+			        $$ = $1;
+			    }
+		;
+		
+indirection_arr:
+            '[' a_expr ']'
 				{
 					A_Indices *ai = makeNode(A_Indices);
 
@@ -16877,8 +16904,8 @@ indirection_el:
 					ai->uidx = $4;
 					$$ = (Node *) ai;
 				}
-		;
-
+        ;
+        
 opt_slice_bound:
 			a_expr									{ $$ = $1; }
 			| /*EMPTY*/								{ $$ = NULL; }

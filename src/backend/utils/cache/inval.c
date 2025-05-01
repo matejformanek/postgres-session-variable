@@ -290,6 +290,8 @@ static struct RELCACHECALLBACK
 
 static int	relcache_callback_count = 0;
 
+static SesvarcacheCallbackFunction	sesvarcache_callback_function;
+
 /* ----------------------------------------------------------------
  *				Invalidation subgroup support functions
  * ----------------------------------------------------------------
@@ -1741,6 +1743,34 @@ CacheRegisterRelcacheCallback(RelcacheCallbackFunction func,
 	relcache_callback_list[relcache_callback_count].arg = arg;
 
 	++relcache_callback_count;
+}
+
+/*
+ * CacheRegisterSesvarcacheCallback
+ *
+ * Register callback function that will be used to Invalidate plans 
+ * with provided argument later in InvalidateSesvarCache
+ * 
+ * We can NOT use the same solution as with REL or SYS cache
+ * due to the nature of SESVAR - see more in regress tests 
+ */
+void
+CacheRegisterSesvarcacheCallback(SesvarcacheCallbackFunction func)
+{
+    sesvarcache_callback_function = func;
+}
+
+/*
+ * InvalidateSesvarCache
+ *
+ * arg - the SESVAR that is to be invalidated 
+ * 
+ * we have to invalidate all cached plans using arg 
+ */
+void
+InvalidateSesvarCache(char *arg)
+{
+    sesvarcache_callback_function(arg);
 }
 
 /*

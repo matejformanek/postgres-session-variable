@@ -256,6 +256,12 @@ typedef struct ModifyTable
 										 * for MERGE */
 } ModifyTable;
 
+typedef struct ModifySessionVariable
+{
+    Plan		plan;
+    CmdType		operation;		/* SET_SESSION_VARIABLE */
+} ModifySessionVariable;
+
 struct PartitionPruneInfo;		/* forward reference to struct below */
 
 /* ----------------

@@ -1663,6 +1663,20 @@
     </para>
    </glossdef>
   </glossentry>
+  
+  <glossentry id="glossary-session-variable">
+   <glossterm>Session variable</glossterm>
+   <glossdef>
+    <para>
+     User defined variable that exists for the duration of a session. It does not have a predefined type and
+     can be reassigned with values of different types. The variable must be explicitly defined and is accessible
+     to anybody within the session. Its value is non-transactional. 
+    </para>
+    <para>
+     For more information, see <xref linkend="dml-session-variables"/>.
+    </para>
+   </glossdef>
+  </glossentry>
 
   <glossentry id="glossary-shared-memory">
    <glossterm>Shared memory</glossterm>

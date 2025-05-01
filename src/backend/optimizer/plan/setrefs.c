@@ -1052,6 +1052,14 @@ set_plan_refs(PlannerInfo *root, Plan *plan, int rtoffset)
 		case T_ProjectSet:
 			set_upper_references(root, plan, rtoffset);
 			break;
+        case T_ModifySessionVariable:
+            {
+                ModifySessionVariable *splan = (ModifySessionVariable *) plan;
+
+                Assert(splan->plan.targetlist == NIL);
+                Assert(splan->plan.qual == NIL);
+            }
+            break;
 		case T_ModifyTable:
 			{
 				ModifyTable *splan = (ModifyTable *) plan;
@@ -3564,6 +3572,7 @@ record_plan_type_dependency(PlannerInfo *root, Oid typid)
 void
 extract_query_dependencies(Node *query,
 						   List **relationOids,
+                           List **relationSesvars,
 						   List **invalItems,
 						   bool *hasRowSecurity)
 {
@@ -3574,6 +3583,7 @@ extract_query_dependencies(Node *query,
 	MemSet(&glob, 0, sizeof(glob));
 	glob.type = T_PlannerGlobal;
 	glob.relationOids = NIL;
+	glob.relationSesVars = NIL;
 	glob.invalItems = NIL;
 	/* Hack: we use glob.dependsOnRole to collect hasRowSecurity flags */
 	glob.dependsOnRole = false;
@@ -3585,6 +3595,7 @@ extract_query_dependencies(Node *query,
 	(void) extract_query_dependencies_walker(query, &root);
 
 	*relationOids = glob.relationOids;
+	*relationSesvars = glob.relationSesVars;
 	*invalItems = glob.invalItems;
 	*hasRowSecurity = glob.dependsOnRole;
 }
@@ -3603,6 +3614,10 @@ extract_query_dependencies_walker(Node *node, PlannerInfo *context)
 	if (node == NULL)
 		return false;
 	Assert(!IsA(node, PlaceHolderVar));
+	if (IsA(node, Param) && ((Param *) node)->paramkind == PARAM_SESSION_VARIABLE)
+        context->glob->relationSesVars = lappend(context->glob->relationSesVars,
+                                                pstrdup(((Param *) node)->paramsesvarid));   
+    
 	if (IsA(node, Query))
 	{
 		Query	   *query = (Query *) node;

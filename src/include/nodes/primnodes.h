@@ -368,6 +368,7 @@ typedef enum ParamKind
 	PARAM_EXEC,
 	PARAM_SUBLINK,
 	PARAM_MULTIEXPR,
+    PARAM_SESSION_VARIABLE,
 } ParamKind;
 
 typedef struct Param
@@ -382,6 +383,8 @@ typedef struct Param
 	Oid			paramcollid pg_node_attr(query_jumble_ignore);
 	/* token location, or -1 if unknown */
 	ParseLoc	location;
+    /* Session variable ID if any */
+    char *      paramsesvarid;
 } Param;
 
 /*
@@ -1383,6 +1386,26 @@ typedef struct ArrayExpr
 	/* token location, or -1 if unknown */
 	ParseLoc	location;
 } ArrayExpr;
+
+/*
+ * Session variable assignment expression
+ * 
+ * SELECT @var := a_expr
+ */
+typedef struct SesVarExpr
+{
+    Expr		xpr;
+    /* Value to be assigned */
+    Node        *arg;
+    /* PG_TYPE OID of result value */
+    Oid			resulttype pg_node_attr(query_jumble_ignore);
+    /* OID of collation, or InvalidOid if none */
+    Oid			collid pg_node_attr(query_jumble_ignore);
+    /* session variable id = @var */
+    char        *name;
+    /* token location, or -1 if unknown */
+    ParseLoc	location;
+} SesVarExpr;
 
 /*
  * RowExpr - a ROW() expression

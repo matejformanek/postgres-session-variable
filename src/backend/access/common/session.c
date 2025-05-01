@@ -205,4 +205,6 @@ DetachSession(void)
 	CurrentSession->segment = NULL;
 	dsa_detach(CurrentSession->area);
 	CurrentSession->area = NULL;
+    hash_destroy(CurrentSession->variables);
+    CurrentSession->variables = NULL;
 }
