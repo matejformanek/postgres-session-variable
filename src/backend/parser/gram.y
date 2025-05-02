@@ -2068,14 +2068,14 @@ SetSessionVariableItem:
                     n->location = @3;
                     $$ = (Node *) n;
                 }
-            |   SESSION_VAR_NAME COLON_EQUALS a_expr TYPE_P Typename
+            |   SESSION_VAR_NAME TYPE_P Typename COLON_EQUALS a_expr
                 {
                     ResTarget *n = makeNode(ResTarget);
                     n->name = $1;
                     n->indirection = NIL;
                     ColumnRef *cr = makeColumnRef($1, NIL, @1, yyscanner);
-                    cr->typeName = $5;
-                    n->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", cr, $3, @2);
+                    cr->typeName = $3;
+                    n->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", cr, $5, @4);
                     n->location = @5;
                     $$ = (Node *) n;
                 }

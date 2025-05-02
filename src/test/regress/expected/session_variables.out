@@ -1020,49 +1020,66 @@ ORDER BY 1 DESC;
 (5 rows)
 
 -------------------------------------------- STRICT TYPE ------------------------------------------------
-SET @d := 5;
-SET @d := 'dds';
-SELECT @d;
- @d  
------
+SET @d_strict := 5;
+SET @d_strict := 'dds';
+SELECT @d_strict;
+ @d_strict 
+-----------
  dds
 (1 row)
 
-SET @d := '2024-01-01' TYPE DATE, @i := '1 MONTH' TYPE INTERVAL;
-SELECT @d;
-     @d     
+SET @d_strict TYPE DATE := '2024-01-01', @i_strict TYPE INTERVAL := '1 MONTH';
+SELECT @d_strict;
+ @d_strict  
 ------------
  01-01-2024
 (1 row)
 
-SET @d := 'dds';
+SET @d_strict := 'dds'; -- should fail
 ERROR:  invalid input syntax for type date: "dds"
-SET @d := '2021-01-01';
-SELECT @d + @i;
+SET @d_strict := '2021-01-01';
+SELECT @d_strict + @i_strict;
          ?column?         
 --------------------------
  Mon Feb 01 00:00:00 2021
 (1 row)
 
-SET @d := 25 TYPE INT;
-SET @d := 'dds';
+SET @d_strict TYPE INT := 25;
+SET @d_strict := 'dds'; -- should fail
 ERROR:  invalid input syntax for type integer: "dds"
-SET @d := '2021-01-01';
+SET @d_strict := '2021-01-01'; -- should fail
 ERROR:  invalid input syntax for type integer: "2021-01-01"
-SET @d := '45';
-SELECT @d;
- @d 
-----
- 45
+SET @d_strict := '45';
+SELECT @d_strict;
+ @d_strict 
+-----------
+        45
 (1 row)
 
-SET @d := NULL;
-SELECT @d;
- @d 
-----
-   
+SET @d_strict := NULL;
+SELECT @d_strict;
+ @d_strict 
+-----------
+          
 (1 row)
 
+SET @arr_strict TYPE INT[] := ARRAY [5,2,3];
+SELECT @arr_strict[1];
+ @arr_strict 
+-------------
+           5
+(1 row)
+
+SELECT @arr_strict := '{3,2,5}'::INT[], @arr_strict[1];
+ @arr_strict | @arr_strict 
+-------------+-------------
+ {3,2,5}     |           3
+(1 row)
+
+SELECT @arr_strict := 1; -- should fail
+ERROR:  failed to find conversion function from integer to integer[]
+SELECT @arr_strict := NULL; -- should fail
+ERROR:  failed to find conversion function from text to integer[]
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part
 SET @var := 1;
