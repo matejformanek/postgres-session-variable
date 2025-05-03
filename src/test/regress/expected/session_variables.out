@@ -267,6 +267,40 @@ SELECT @arr[2]; -- should fail -> not an array
 ERROR:  cannot subscript type integer because it does not support subscripting
 LINE 1: SELECT @arr[2];
         ^
+SELECT @arr := '{3,2,5}'::INT[], @arr[1];
+  @arr   | @arr 
+---------+------
+ {3,2,5} |    3
+(1 row)
+
+SELECT @arr[1] := 4;
+ @arr 
+------
+    4
+(1 row)
+
+SET @arr[2] := '4';
+SELECT @arr, @arr[1], @arr[2:3];
+  @arr   | @arr | @arr  
+---------+------+-------
+ {4,4,5} |    4 | {4,5}
+(1 row)
+
+SET @arr[1:2] := 5;
+SELECT @arr;
+  @arr   
+---------
+ {5,5,5}
+(1 row)
+
+SELECT @arr[1] := 'Hello'; -- should fail
+ERROR:  Invalid type of expression.
+SELECT @arr[1] := NULL; -- should fail
+ERROR:  Can not assign NULL value as an array item
+SET @arr[4] := 4; -- should fail
+ERROR:  Array indirection out of bounds.
+SELECT @arr_non_existent[1] := 5; -- should fail
+ERROR:  Can not use array indirection on non-existing value.
 SET @js := '{"col": "value"}'::JSON;
 SELECT @js ->> 'col';
  ?column? 

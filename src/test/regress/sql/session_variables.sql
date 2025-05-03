@@ -164,6 +164,26 @@ SET @arr := 5;
 
 SELECT @arr[2]; -- should fail -> not an array
 
+SELECT @arr := '{3,2,5}'::INT[], @arr[1];
+
+SELECT @arr[1] := 4;
+
+SET @arr[2] := '4';
+
+SELECT @arr, @arr[1], @arr[2:3];
+
+SET @arr[1:2] := 5;
+
+SELECT @arr;
+
+SELECT @arr[1] := 'Hello'; -- should fail
+
+SELECT @arr[1] := NULL; -- should fail
+
+SET @arr[4] := 4; -- should fail
+
+SELECT @arr_non_existent[1] := 5; -- should fail
+
 SET @js := '{"col": "value"}'::JSON;
 
 SELECT @js ->> 'col';

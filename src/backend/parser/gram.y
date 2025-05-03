@@ -2068,6 +2068,15 @@ SetSessionVariableItem:
                     n->location = @3;
                     $$ = (Node *) n;
                 }
+            |   SESSION_VAR_NAME indirection_arr COLON_EQUALS a_expr
+                {
+                    ResTarget *n = makeNode(ResTarget);
+                    n->name = $1;
+                    n->indirection = NIL;
+                    n->val = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, list_make1($2), @1, yyscanner), $4, @3);
+                    n->location = @4;
+                    $$ = (Node *) n;
+                }
         ;
 
 /**
@@ -2086,6 +2095,10 @@ session_var_name_ref:
             | SESSION_VAR_NAME COLON_EQUALS a_expr %prec IS
                 {
                     $$ = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, NIL, @1, yyscanner), $3, @2);
+                }
+            | SESSION_VAR_NAME indirection_arr COLON_EQUALS a_expr %prec IS
+                {
+                    $$ = (Node *) makeSimpleA_Expr(AEXPR_SESSION_VARIABLE, ":=", makeColumnRef($1, list_make1($2), @1, yyscanner), $4, @3);
                 }
         ;
 

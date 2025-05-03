@@ -20,7 +20,7 @@
 #include "tcop/dest.h"
 
 
-extern void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
+extern void saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection);
 
 extern Node *
 makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int16 typLen, bool isnull, Datum value);
@@ -31,6 +31,6 @@ getParamSessionVariable(char *name);
 extern Const *
 getConstSessionVariable(char *name, Oid type);
 
-extern void setSessionVariable(char *varname, Node *expr);
+extern void setSessionVariable(char *varname, Node *expr, List *indirection);
 
 #endif //PGSQL_SESSIONVARIABLE_H

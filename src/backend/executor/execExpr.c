@@ -1175,6 +1175,7 @@ ExecInitExprRec(Expr *node, ExprState *state,
                 scratch.d.sesvar.sesvarid = sesvar->name;
                 scratch.d.sesvar.sesvartype = sesvar->resulttype;
                 scratch.d.sesvar.sesvarcollid = sesvar->collid;
+                scratch.d.sesvar.sesvarindirection = sesvar->indirection;
                 
                 ExecInitExprRec((Expr *) sesvar->arg, state,
                                 resv,

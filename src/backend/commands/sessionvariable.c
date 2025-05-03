@@ -55,7 +55,7 @@
 
 void initSessionVariables(void);
 
-void saveSessionVariable(sessionVariable *result, Node *expr, bool exists);
+void saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection);
 
 /*
  * Returns Const value of a session variable
@@ -180,13 +180,101 @@ makeConstSessionVariable(Oid typid, int32 typmod, Oid collid, bool typByVal, int
     return (Node *) expr;
 }
 
+void handleArrayIndirection(sessionVariable *result, Node *expr, bool exists, A_Indices *indirection) {
+    Oid array_type;
+    Oid elem_type;
+    ArrayType *array;
+    ArrayType *new_array;
+    int ndim;
+    int *dims;
+    int nelems;
+    int lidx, uidx;
+    Node *subexpr;
+    int16 elmlen;
+    bool  elmbyval;
+    char  elmalign;
+    Datum *elem_values;
+    Datum new_datum;
+    bool *elem_nulls;
+    ParseState *pstate = make_parsestate(NULL);
+    
+    if(!exists)
+        elog(ERROR, "Can not use array indirection on non-existing value.");
+        
+    array_type = ((Const *) result->expr)->consttype;
+    elem_type = get_element_type(array_type);
+    
+    if(elem_type == InvalidOid)
+        elog(ERROR, "Can not use array indirection on non-array value.");
+    
+    if(((Const *) expr)->constisnull)
+        elog(ERROR, "Can not assign NULL value as an array item");
+    
+    array = DatumGetArrayTypeP(((Const *) result->expr)->constvalue);
+    ndim = ARR_NDIM(array);
+    dims = ARR_DIMS(array);
+    nelems = ArrayGetNItems(ndim, dims);
+    
+    /* Get indirection array index */
+    subexpr = transformExpr(pstate, indirection->uidx, EXPR_KIND_SELECT_TARGET);
+    subexpr = coerce_to_target_type(pstate,
+                                    subexpr, exprType(subexpr),
+                                    INT4OID, -1,
+                                    COERCION_ASSIGNMENT,
+                                    COERCE_IMPLICIT_CAST,
+                                    -1);
+    uidx = lidx = DatumGetInt32(((Const *) subexpr)->constvalue) - 1;
+    if(indirection->lidx != NULL) {
+        subexpr = transformExpr(pstate, indirection->lidx, EXPR_KIND_SELECT_TARGET);
+        subexpr = coerce_to_target_type(pstate,
+                                        subexpr, exprType(subexpr),
+                                        INT4OID, -1,
+                                        COERCION_ASSIGNMENT,
+                                        COERCE_IMPLICIT_CAST,
+                                        -1);
+        lidx = DatumGetInt32(((Const *) subexpr)->constvalue) - 1;
+    }
+            
+    if(uidx >= nelems || uidx < 0 || lidx > uidx)
+        elog(ERROR, "Array indirection out of bounds.");
+        
+    /* Make sure the element is of correct type */
+    expr = coerce_to_target_type(pstate,
+                                 expr, exprType(expr),
+                                 elem_type, -1,
+                                 COERCION_ASSIGNMENT,
+                                 COERCE_IMPLICIT_CAST,
+                                 -1);
+    if(expr == NULL)
+        elog(ERROR, "Invalid type of expression.");
+    
+    get_typlenbyvalalign(elem_type, &elmlen, &elmbyval, &elmalign);
+    deconstruct_array(array, elem_type, elmlen, elmbyval, elmalign,
+                      &elem_values, &elem_nulls, &nelems);
+    
+    for(int i = lidx; i <= uidx; ++i)
+        elem_values[i] = ((Const *) expr)->constvalue;
+    
+    new_array = construct_array(elem_values, nelems,
+                                elem_type, elmlen, elmbyval, elmalign);
+    new_datum = PointerGetDatum(new_array);
+
+    saveSessionVariable(result, makeConstSessionVariable(array_type, -1, InvalidOid,
+                                                         false, -1, false, new_datum), true, NIL);
+}
+
 void
-saveSessionVariable(sessionVariable *result, Node *expr, bool exists) {
+saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection) {
     MemoryContext oldContext;
     Node *oldExpr = NULL;
 
     Assert(result);
 
+    if(indirection != NIL) {
+        handleArrayIndirection(result, expr, exists, (A_Indices *) linitial(indirection));
+        return;
+    }
+    
     if (exists) {
         /* Invalidate cached plans if we are changing data type */
         if (((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
@@ -222,7 +310,7 @@ initSessionVariables() {
     Assert(CurrentSession->variables != NULL);
 }
 
-void setSessionVariable(char *varname, Node *expr) {
+void setSessionVariable(char *varname, Node *expr, List *indirection) {
     sessionVariable *ref;
     bool found;
 
@@ -237,5 +325,5 @@ void setSessionVariable(char *varname, Node *expr) {
     if (ref == NULL)
         elog(ERROR, "Could not allocate space for session variable");
 
-    saveSessionVariable(ref, expr, found);
+    saveSessionVariable(ref, expr, found, indirection);
 }
