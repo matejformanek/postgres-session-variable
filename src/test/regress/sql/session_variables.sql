@@ -176,11 +176,17 @@ SET @arr[1:2] := 5;
 
 SELECT @arr;
 
+SET @arr := ARRAY [(5, 'ahoj')::TEST_TYPE, (3, 'jakje')::TEST_TYPE];
+
+SELECT @arr, (@arr[1]).a, (@arr[1]).b;
+
 SELECT @arr[1] := 'Hello'; -- should fail
 
 SELECT @arr[1] := NULL; -- should fail
 
 SET @arr[4] := 4; -- should fail
+
+SET @arr[-1] := 4; -- should fail
 
 SELECT @arr_non_existent[1] := 5; -- should fail
 

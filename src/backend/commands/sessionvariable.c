@@ -235,7 +235,7 @@ void handleArrayIndirection(sessionVariable *result, Node *expr, bool exists, A_
         lidx = DatumGetInt32(((Const *) subexpr)->constvalue) - 1;
     }
             
-    if(uidx >= nelems || uidx < 0 || lidx > uidx)
+    if(uidx >= nelems || lidx < 0 || uidx < 0 || lidx > uidx)
         elog(ERROR, "Array indirection out of bounds.");
         
     /* Make sure the element is of correct type */
