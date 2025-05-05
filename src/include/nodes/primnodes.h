@@ -1405,6 +1405,8 @@ typedef struct SesVarExpr
     char        *name;
     /* array indirection */
     List        *indirection;
+    /* Strict type */
+    bool        strict_type;
     /* token location, or -1 if unknown */
     ParseLoc	location;
 } SesVarExpr;

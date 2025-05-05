@@ -575,6 +575,36 @@ FROM test
 GROUP BY 1
 ORDER BY 1 DESC;
 
+-------------------------------------------- STRICT TYPE ------------------------------------------------
+
+SET @d_strict := 5;
+SET @d_strict := 'dds';
+SELECT @d_strict;
+
+SET @d_strict TYPE DATE := '2024-01-01', @i_strict TYPE INTERVAL := '1 MONTH';
+SELECT @d_strict;
+SET @d_strict := 'dds'; -- should fail
+SET @d_strict := '2021-01-01';
+SELECT @d_strict + @i_strict;
+
+SET @d_strict TYPE INT := 25;
+SET @d_strict := 'dds'; -- should fail
+SET @d_strict := '2021-01-01'; -- should fail
+SET @d_strict := '45';
+SELECT @d_strict;
+
+SET @d_strict := NULL;
+SELECT @d_strict;
+
+SET @arr_strict TYPE INT[] := ARRAY [5,2,3];
+SELECT @arr_strict[1];
+SELECT @arr_strict[1] := 4;
+SELECT @arr_strict[2:3] := 5;
+SELECT @arr_strict;
+SELECT @arr_strict := '{3,2,5}'::INT[], @arr_strict[1];
+SELECT @arr_strict := 1; -- should fail
+SELECT @arr_strict := NULL; -- should fail
+
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part
 SET @var := 1;

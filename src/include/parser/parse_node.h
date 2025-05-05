@@ -365,6 +365,7 @@ typedef struct ParseCallbackState
 
 typedef struct sessionVariable {
     char key[SESVAR_SIZE];
+    bool strict_type;
     Node *expr;
 } sessionVariable;
 

@@ -1127,8 +1127,8 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
                                                         typByVal,
                                                         typLen,
                                                         arg_isnull,
-                                                        arg_value),
-                               op->d.sesvar.sesvarindirection);
+                                                        arg_value), op->d.sesvar.sesvarindirection,
+                                                                    op->d.sesvar.sesvarstricttype);
             
             /* Output value */
             *op->resvalue = arg_value;

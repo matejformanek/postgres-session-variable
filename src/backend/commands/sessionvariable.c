@@ -55,7 +55,7 @@
 
 void initSessionVariables(void);
 
-void saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection);
+void saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection, bool new_strict_type);
 
 /*
  * Returns Const value of a session variable
@@ -260,13 +260,13 @@ void handleArrayIndirection(sessionVariable *result, Node *expr, bool exists, A_
     new_datum = PointerGetDatum(new_array);
 
     saveSessionVariable(result, makeConstSessionVariable(array_type, -1, InvalidOid,
-                                                         false, -1, false, new_datum), true, NIL);
+                                                         false, -1, false, new_datum), true, NIL, false);
 }
 
 void
-saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection) {
+saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indirection, bool new_strict_type) {
     MemoryContext oldContext;
-    Node *oldExpr = NULL;
+    Node * oldExpr = NULL;
 
     Assert(result);
 
@@ -281,6 +281,18 @@ saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indi
             InvalidateSesvarCache(result->key);
 
         oldExpr = result->expr;
+        if(new_strict_type)
+            result->strict_type = true;
+        
+        if (!new_strict_type && result->strict_type && ((Const *) result->expr)->consttype != ((Const *) expr)->consttype)
+            expr = coerce_type(NULL,
+                               expr,
+                               ((Const *) expr)->consttype,
+                               ((Const *) result->expr)->consttype,
+                               -1,
+                               COERCION_IMPLICIT,
+                               COERCE_IMPLICIT_CAST,
+                               -1);
     }
 
     oldContext = MemoryContextSwitchTo(TopMemoryContext);
@@ -290,7 +302,7 @@ saveSessionVariable(sessionVariable *result, Node *expr, bool exists, List *indi
     MemoryContextSwitchTo(oldContext);
 
     /* Free old Expr-Node if we rewrote it with new data */
-    if(oldExpr)
+    if (oldExpr)
         pfree(oldExpr);
 }
 
@@ -310,7 +322,7 @@ initSessionVariables() {
     Assert(CurrentSession->variables != NULL);
 }
 
-void setSessionVariable(char *varname, Node *expr, List *indirection) {
+void setSessionVariable(char *varname, Node *expr, List *indirection, bool new_strict_type) {
     sessionVariable *ref;
     bool found;
 
@@ -325,5 +337,8 @@ void setSessionVariable(char *varname, Node *expr, List *indirection) {
     if (ref == NULL)
         elog(ERROR, "Could not allocate space for session variable");
 
-    saveSessionVariable(ref, expr, found, indirection);
+    if(!found)
+        ref->strict_type = new_strict_type;
+    
+    saveSessionVariable(ref, expr, found, indirection, new_strict_type);
 }
