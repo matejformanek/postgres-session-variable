@@ -1403,6 +1403,10 @@ typedef struct SesVarExpr
     Oid			collid pg_node_attr(query_jumble_ignore);
     /* session variable id = @var */
     char        *name;
+    /* array indirection */
+    List        *indirection;
+    /* Strict type */
+    bool        strict_type;
     /* token location, or -1 if unknown */
     ParseLoc	location;
 } SesVarExpr;

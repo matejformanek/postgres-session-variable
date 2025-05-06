@@ -164,6 +164,32 @@ SET @arr := 5;
 
 SELECT @arr[2]; -- should fail -> not an array
 
+SELECT @arr := '{3,2,5}'::INT[], @arr[1];
+
+SELECT @arr[1] := 4;
+
+SET @arr[2] := '4';
+
+SELECT @arr, @arr[1], @arr[2:3];
+
+SET @arr[1:2] := 5;
+
+SELECT @arr;
+
+SET @arr[4] := 4; -- should fail
+
+SET @arr[-1] := 4; -- should fail
+
+SET @arr := ARRAY [(5, 'ahoj')::TEST_TYPE, (3, 'jakje')::TEST_TYPE];
+
+SELECT @arr, (@arr[1]).a, (@arr[1]).b;
+
+SELECT @arr[1] := 'Hello'; -- should fail
+
+SELECT @arr[1] := NULL; -- should fail
+
+SELECT @arr_non_existent[1] := 5; -- should fail
+
 SET @js := '{"col": "value"}'::JSON;
 
 SELECT @js ->> 'col';
@@ -548,6 +574,36 @@ SELECT @agg + col_int, COUNT(*)
 FROM test
 GROUP BY 1
 ORDER BY 1 DESC;
+
+-------------------------------------------- STRICT TYPE ------------------------------------------------
+
+SET @d_strict := 5;
+SET @d_strict := 'dds';
+SELECT @d_strict;
+
+SET @d_strict TYPE DATE := '2024-01-01', @i_strict TYPE INTERVAL := '1 MONTH';
+SELECT @d_strict;
+SET @d_strict := 'dds'; -- should fail
+SET @d_strict := '2021-01-01';
+SELECT @d_strict + @i_strict;
+
+SET @d_strict TYPE INT := 25;
+SET @d_strict := 'dds'; -- should fail
+SET @d_strict := '2021-01-01'; -- should fail
+SET @d_strict := '45';
+SELECT @d_strict;
+
+SET @d_strict := NULL;
+SELECT @d_strict;
+
+SET @arr_strict TYPE INT[] := ARRAY [5,2,3];
+SELECT @arr_strict[1];
+SELECT @arr_strict[1] := 4;
+SELECT @arr_strict[2:3] := '5';
+SELECT @arr_strict;
+SELECT @arr_strict := '{3,2,5}'::INT[], @arr_strict[1];
+SELECT @arr_strict := 1; -- should fail
+SELECT @arr_strict := NULL; -- should fail
 
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part

@@ -5186,7 +5186,7 @@ exec_assign_value(PLpgSQL_execstate *estate,
                                                typByVal,
                                                typLen,
                                                isNull,
-                                               value));
+                                               value), NIL, false);
 				break;
 			}
 

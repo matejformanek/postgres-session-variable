@@ -1397,14 +1397,44 @@ transformAExprSessionVariable(ParseState *pstate, A_Expr *a)
 {
     SesVarExpr *result = makeNode(SesVarExpr);
     sessionVariable *ref;
+    Const *c;
     bool found;
+    bool coerce = true;
     
     result->arg = transformExprRecurse(pstate, a->rexpr);
-    result->resulttype = exprType(result->arg);
+    if(IsA(a->lexpr, A_Indirection)){ /* Array indirection assign */
+        result->name = strVal((Node *) linitial(((ColumnRef *) ((A_Indirection *) a->lexpr)->arg)->fields));   
+        result->strict_type = false;
+        result->indirection = ((A_Indirection *) a->lexpr)->indirection;
+        
+        c = getConstSessionVariable(result->name, UNKNOWNOID);
+        if(!c)
+            elog(ERROR, "Can not use array indirection on non-existing value.");
+        
+        result->resulttype = get_element_type(c->consttype);
+        if(result->resulttype == InvalidOid)
+            elog(ERROR, "Can not use array indirection on non-array value.");
+    } else { /* Normal assign */
+        result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
+        result->strict_type = coerce = ((ColumnRef *) a->lexpr)->typeName != NULL;
+        result->resulttype = result->strict_type == false ? exprType(result->arg) :
+                             typenameTypeId(pstate, ((ColumnRef *) a->lexpr)->typeName);
+        result->indirection = NIL;
+    }
+    
+    if(coerce)
+        result->arg = coerce_type(NULL,
+                                  (Node *) result->arg,
+                                  exprType(result->arg),
+                                  result->resulttype,
+                                  -1,
+                                  COERCION_IMPLICIT,
+                                  COERCE_IMPLICIT_CAST,
+                                  -1);
+    
     result->collid = exprCollation(result->arg);
-    result->name = strVal((Node *) linitial(((ColumnRef *) a->lexpr)->fields));
     result->location = a->location;
-
+    
     /* Save the possibly altered type to the pstate->sesvar_changes */
     ref = (sessionVariable *) hash_search(pstate->sesvar_changes, result->name, HASH_ENTER_NULL, &found);
     if(found) {

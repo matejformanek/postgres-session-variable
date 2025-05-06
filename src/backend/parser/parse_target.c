@@ -1810,7 +1810,10 @@ FigureColnameInternal(Node *node, char **name)
 				*name = "nullif";
 				return 2;
 			} else if(((A_Expr *) node)->kind == AEXPR_SESSION_VARIABLE) {
-                *name = strVal((Node *) linitial(((ColumnRef *) ((A_Expr *) node)->lexpr)->fields));
+                if(IsA((ColumnRef *) ((A_Expr *) node)->lexpr, A_Indirection))
+                    *name = strVal((Node *) linitial(((ColumnRef *) ((A_Indirection *) ((A_Expr *) node)->lexpr)->arg)->fields));
+                else
+                    *name = strVal((Node *) linitial(((ColumnRef *) ((A_Expr *) node)->lexpr)->fields));
                 return 2;
             }
 			break;

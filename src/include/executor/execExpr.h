@@ -411,6 +411,8 @@ typedef struct ExprEvalStep
             char	    *sesvarid;	    /* char* ID for sesvar */
             Oid			 sesvartype;	/* OID of sesvar's datatype */
             Oid			 sesvarcollid;	/* OID of sesvar's collation */
+            List	    *sesvarindirection;	/* OID of sesvar's array indirection */
+            bool		 sesvarstricttype;	/* OID of sesvar's collation */
         }			sesvar;
 
 		/* for EEOP_PARAM_CALLBACK */

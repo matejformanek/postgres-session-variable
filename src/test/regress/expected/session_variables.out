@@ -267,6 +267,50 @@ SELECT @arr[2]; -- should fail -> not an array
 ERROR:  cannot subscript type integer because it does not support subscripting
 LINE 1: SELECT @arr[2];
         ^
+SELECT @arr := '{3,2,5}'::INT[], @arr[1];
+  @arr   | @arr 
+---------+------
+ {3,2,5} |    3
+(1 row)
+
+SELECT @arr[1] := 4;
+ @arr 
+------
+    4
+(1 row)
+
+SET @arr[2] := '4';
+SELECT @arr, @arr[1], @arr[2:3];
+  @arr   | @arr | @arr  
+---------+------+-------
+ {4,4,5} |    4 | {4,5}
+(1 row)
+
+SET @arr[1:2] := 5;
+SELECT @arr;
+  @arr   
+---------
+ {5,5,5}
+(1 row)
+
+SET @arr[4] := 4; -- should fail
+ERROR:  Array indirection out of bounds.
+SET @arr[-1] := 4; -- should fail
+ERROR:  Array indirection out of bounds.
+SET @arr := ARRAY [(5, 'ahoj')::TEST_TYPE, (3, 'jakje')::TEST_TYPE];
+SELECT @arr, (@arr[1]).a, (@arr[1]).b;
+           @arr           | a |  b   
+--------------------------+---+------
+ {"(5,ahoj)","(3,jakje)"} | 5 | ahoj
+(1 row)
+
+SELECT @arr[1] := 'Hello'; -- should fail
+ERROR:  malformed record literal: "Hello"
+DETAIL:  Missing left parenthesis.
+SELECT @arr[1] := NULL; -- should fail
+ERROR:  Can not assign NULL value as an array item
+SELECT @arr_non_existent[1] := 5; -- should fail
+ERROR:  Can not use array indirection on non-existing value.
 SET @js := '{"col": "value"}'::JSON;
 SELECT @js ->> 'col';
  ?column? 
@@ -1019,6 +1063,85 @@ ORDER BY 1 DESC;
          ->  Seq Scan on test  (cost=0.00..18.88 rows=710 width=4)
 (5 rows)
 
+-------------------------------------------- STRICT TYPE ------------------------------------------------
+SET @d_strict := 5;
+SET @d_strict := 'dds';
+SELECT @d_strict;
+ @d_strict 
+-----------
+ dds
+(1 row)
+
+SET @d_strict TYPE DATE := '2024-01-01', @i_strict TYPE INTERVAL := '1 MONTH';
+SELECT @d_strict;
+ @d_strict  
+------------
+ 01-01-2024
+(1 row)
+
+SET @d_strict := 'dds'; -- should fail
+ERROR:  invalid input syntax for type date: "dds"
+SET @d_strict := '2021-01-01';
+SELECT @d_strict + @i_strict;
+         ?column?         
+--------------------------
+ Mon Feb 01 00:00:00 2021
+(1 row)
+
+SET @d_strict TYPE INT := 25;
+SET @d_strict := 'dds'; -- should fail
+ERROR:  invalid input syntax for type integer: "dds"
+SET @d_strict := '2021-01-01'; -- should fail
+ERROR:  invalid input syntax for type integer: "2021-01-01"
+SET @d_strict := '45';
+SELECT @d_strict;
+ @d_strict 
+-----------
+        45
+(1 row)
+
+SET @d_strict := NULL;
+SELECT @d_strict;
+ @d_strict 
+-----------
+          
+(1 row)
+
+SET @arr_strict TYPE INT[] := ARRAY [5,2,3];
+SELECT @arr_strict[1];
+ @arr_strict 
+-------------
+           5
+(1 row)
+
+SELECT @arr_strict[1] := 4;
+ @arr_strict 
+-------------
+           4
+(1 row)
+
+SELECT @arr_strict[2:3] := '5';
+ @arr_strict 
+-------------
+           5
+(1 row)
+
+SELECT @arr_strict;
+ @arr_strict 
+-------------
+ {4,5,5}
+(1 row)
+
+SELECT @arr_strict := '{3,2,5}'::INT[], @arr_strict[1];
+ @arr_strict | @arr_strict 
+-------------+-------------
+ {3,2,5}     |           3
+(1 row)
+
+SELECT @arr_strict := 1; -- should fail
+ERROR:  failed to find conversion function from integer to integer[]
+SELECT @arr_strict := NULL; -- should fail
+ERROR:  failed to find conversion function from text to integer[]
 -------------------------------------------- TRANSACTIONS -----------------------------------------------
 -- More cases in PL/pgSQL part
 SET @var := 1;
