@@ -293,6 +293,10 @@ SELECT @arr;
  {5,5,5}
 (1 row)
 
+SET @arr[4] := 4; -- should fail
+ERROR:  Array indirection out of bounds.
+SET @arr[-1] := 4; -- should fail
+ERROR:  Array indirection out of bounds.
 SET @arr := ARRAY [(5, 'ahoj')::TEST_TYPE, (3, 'jakje')::TEST_TYPE];
 SELECT @arr, (@arr[1]).a, (@arr[1]).b;
            @arr           | a |  b   
@@ -301,13 +305,10 @@ SELECT @arr, (@arr[1]).a, (@arr[1]).b;
 (1 row)
 
 SELECT @arr[1] := 'Hello'; -- should fail
-ERROR:  Invalid type of expression.
+ERROR:  malformed record literal: "Hello"
+DETAIL:  Missing left parenthesis.
 SELECT @arr[1] := NULL; -- should fail
 ERROR:  Can not assign NULL value as an array item
-SET @arr[4] := 4; -- should fail
-ERROR:  Array indirection out of bounds.
-SET @arr[-1] := 4; -- should fail
-ERROR:  Array indirection out of bounds.
 SELECT @arr_non_existent[1] := 5; -- should fail
 ERROR:  Can not use array indirection on non-existing value.
 SET @js := '{"col": "value"}'::JSON;
@@ -1119,7 +1120,7 @@ SELECT @arr_strict[1] := 4;
            4
 (1 row)
 
-SELECT @arr_strict[2:3] := 5;
+SELECT @arr_strict[2:3] := '5';
  @arr_strict 
 -------------
            5

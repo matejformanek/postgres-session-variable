@@ -196,16 +196,13 @@ void handleArrayIndirection(sessionVariable *result, Node *expr, bool exists, A_
     Datum *elem_values;
     Datum new_datum;
     bool *elem_nulls;
+    Oid outputFunction;
+    bool typeIsVarlen;
+    char *cstringValue;
     ParseState *pstate = make_parsestate(NULL);
-    
-    if(!exists)
-        elog(ERROR, "Can not use array indirection on non-existing value.");
-        
+  
     array_type = ((Const *) result->expr)->consttype;
     elem_type = get_element_type(array_type);
-    
-    if(elem_type == InvalidOid)
-        elog(ERROR, "Can not use array indirection on non-array value.");
     
     if(((Const *) expr)->constisnull)
         elog(ERROR, "Can not assign NULL value as an array item");
@@ -237,16 +234,6 @@ void handleArrayIndirection(sessionVariable *result, Node *expr, bool exists, A_
             
     if(uidx >= nelems || lidx < 0 || uidx < 0 || lidx > uidx)
         elog(ERROR, "Array indirection out of bounds.");
-        
-    /* Make sure the element is of correct type */
-    expr = coerce_to_target_type(pstate,
-                                 expr, exprType(expr),
-                                 elem_type, -1,
-                                 COERCION_ASSIGNMENT,
-                                 COERCE_IMPLICIT_CAST,
-                                 -1);
-    if(expr == NULL)
-        elog(ERROR, "Invalid type of expression.");
     
     get_typlenbyvalalign(elem_type, &elmlen, &elmbyval, &elmalign);
     deconstruct_array(array, elem_type, elmlen, elmbyval, elmalign,
