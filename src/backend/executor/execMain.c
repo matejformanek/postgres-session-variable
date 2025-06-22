@@ -344,8 +344,9 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	 */
 	estate->es_processed = 0;
 
-	sendTuples = (operation == CMD_SELECT ||
-				  queryDesc->plannedstmt->hasReturning);
+	sendTuples = (!queryDesc->plannedstmt->is_sesvar &&
+                  (operation == CMD_SELECT ||
+				  queryDesc->plannedstmt->hasReturning));
 
 	if (sendTuples)
 		dest->rStartup(dest, operation, queryDesc->tupDesc);
@@ -1688,7 +1689,7 @@ ExecutePlan(EState *estate,
 		 * types, the ModifyTable plan node must count the appropriate
 		 * events.)
 		 */
-		if (operation == CMD_SELECT)
+		if (operation == CMD_SELECT && sendTuples)
 			(estate->es_processed)++;
 
 		/*

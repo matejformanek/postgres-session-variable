@@ -2880,7 +2880,7 @@ _SPI_pquery(QueryDesc *queryDesc, bool fire_triggers, uint64 tcount)
 	switch (operation)
 	{
 		case CMD_SELECT:
-			if (queryDesc->dest->mydest == DestNone)
+			if (queryDesc->dest->mydest == DestNone || queryDesc->plannedstmt->is_sesvar)
 			{
 				/* Don't return SPI_OK_SELECT if we're discarding result */
 				res = SPI_OK_UTILITY;
@@ -2906,9 +2906,6 @@ _SPI_pquery(QueryDesc *queryDesc, bool fire_triggers, uint64 tcount)
 			else
 				res = SPI_OK_UPDATE;
 			break;
-        case CMD_SET_SESSION_VARIABLE:
-            res = SPI_OK_SET_SESSION_VARIABLE;
-            break;
 		case CMD_MERGE:
 			if (queryDesc->plannedstmt->hasReturning)
 				res = SPI_OK_MERGE_RETURNING;

@@ -258,7 +258,6 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 
 		case T_ClosePortalStmt:
 		case T_ConstraintsSetStmt:
-        case T_SetSessionVariableStmt:
 		case T_DeallocateStmt:
 		case T_DeclareCursorStmt:
 		case T_DiscardStmt:
@@ -2393,10 +2392,6 @@ CreateCommandTag(Node *parsetree)
 		case T_PLAssignStmt:
 			tag = CMDTAG_SELECT;
 			break;
-
-        case T_SetSessionVariableStmt:
-            tag = CMDTAG_SET_SESSION_VARIABLE;
-            break;
             
 			/* utility statements --- same whether raw or cooked */
 		case T_TransactionStmt:

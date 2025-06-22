@@ -2041,9 +2041,11 @@ CheckPointStmt:
 SetSessionVariableStmt:
             SET session_variable_list
                 {
-                    SetSessionVariableStmt *n = makeNode(SetSessionVariableStmt);
-                    n->variables = $2;
-                    $$ = (Node *) n;
+                    SelectStmt *n = makeNode(SelectStmt);
+
+					n->targetList = $2;
+					n->is_sesvar = true;
+					$$ = (Node *) n;
                 }
         ;
 

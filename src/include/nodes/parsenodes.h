@@ -201,6 +201,7 @@ typedef struct Query
 
 	List	   *groupClause;	/* a list of SortGroupClause's */
 	bool		groupDistinct;	/* is the group by clause distinct? */
+	bool		is_sesvar;
 
 	List	   *groupingSets;	/* a list of GroupingSet's if present */
 
@@ -2167,6 +2168,7 @@ typedef struct SelectStmt
 	 */
 	SetOperation op;			/* type of set op */
 	bool		all;			/* ALL specified? */
+	bool		is_sesvar;			/* ALL specified? */
 	struct SelectStmt *larg;	/* left child */
 	struct SelectStmt *rarg;	/* right child */
 	ParseLoc	stmt_location;	/* start location, or -1 if unknown */
@@ -2660,20 +2662,6 @@ typedef struct VariableShowStmt
 	NodeTag		type;
 	char	   *name;
 } VariableShowStmt;
-
-/* ----------------------
- * SET session variable
- * 
- * SET @varname := expr [, var_name := expr ] ...
- * Allows us to set multiple user-defined session variables.
- * ----------------------
- */
-
-typedef struct SetSessionVariableStmt
-{
-    NodeTag		type;
-    List	   *variables; /* List of ResTarget */
-} SetSessionVariableStmt;
 
 /* ----------------------
  *		Create Table Statement

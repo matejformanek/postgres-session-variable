@@ -54,6 +54,8 @@ typedef struct PlannedStmt
 	uint64		queryId;		/* query identifier (copied from Query) */
 
 	bool		hasReturning;	/* is it insert|update|delete|merge RETURNING? */
+    
+	bool		is_sesvar;	    /* is SET SESVAR (executed as SELECT) */
 
 	bool		hasModifyingCTE;	/* has insert|update|delete|merge in WITH? */
 

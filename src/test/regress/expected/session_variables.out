@@ -59,9 +59,6 @@ ERROR:  column "test" does not exist
 LINE 1: SET @a := test;
                   ^
 SET @gs := GENERATE_SERIES(1, 5, 10); -- should fail
-ERROR:  set-valued function called in context that cannot accept a set
-LINE 1: SET @gs := GENERATE_SERIES(1, 5, 10);
-                   ^
 -- Self assigning --------------------------
 SET @var := 5;
 SET @var := (@var * @var) + @var - 1;

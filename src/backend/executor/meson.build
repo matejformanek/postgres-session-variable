@@ -44,7 +44,6 @@ backend_sources += files(
   'nodeMemoize.c',
   'nodeMergeAppend.c',
   'nodeMergejoin.c',
-  'nodeModifySessionVariable.c',
   'nodeModifyTable.c',
   'nodeNamedtuplestorescan.c',
   'nodeNestloop.c',

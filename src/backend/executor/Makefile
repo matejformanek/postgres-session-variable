@@ -56,7 +56,6 @@ OBJS = \
 	nodeMemoize.o \
 	nodeMergeAppend.o \
 	nodeMergejoin.o \
-	nodeModifySessionVariable.o \
 	nodeModifyTable.o \
 	nodeNamedtuplestorescan.o \
 	nodeNestloop.o \
