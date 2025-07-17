@@ -2239,6 +2239,7 @@ typedef struct PLAssignStmt
 
 	char	   *name;			/* initial column name */
 	List	   *indirection;	/* subscripts and field names, if any */
+	List	   *jsonb_path;	    /* path to jsonb element, if any */
 	int			nnames;			/* number of names to use in ColumnRef */
 	SelectStmt *val;			/* the PL/pgSQL expression to assign */
 	ParseLoc	location;		/* name's token location, or -1 if unknown */

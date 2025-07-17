@@ -267,7 +267,7 @@ plpgsql_yylex(void)
 								   core_yy.scanbuf + aux1.lloc,
 								   (!AT_STMT_START(plpgsql_yytoken) ||
 									(tok2 == '=' || tok2 == COLON_EQUALS ||
-									 tok2 == '[')),
+									 tok2 == '[' || tok2 == ARROW)),
 								   &aux1.lval.wdatum,
 								   &aux1.lval.word))
 				tok1 = T_DATUM;

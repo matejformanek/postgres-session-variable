@@ -235,7 +235,7 @@ static	void			check_raise_parameters(PLpgSQL_stmt_raise *stmt);
  */
 %token <str>	IDENT UIDENT FCONST SCONST USCONST BCONST XCONST Op SESSION_VAR_NAME
 %token <ival>	ICONST PARAM
-%token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER
+%token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER ARROW
 %token			LESS_EQUALS GREATER_EQUALS NOT_EQUALS
 
 /*
@@ -1993,7 +1993,7 @@ stmt_execsql	: K_IMPORT
 						tok = yylex();
 						plpgsql_push_back_token(tok);
 						if (tok == '=' || tok == COLON_EQUALS ||
-							tok == '[' || tok == '.')
+							tok == '[' || tok == '.' || tok == ARROW)
 							word_is_not_variable(&($1), @1);
 						$$ = make_execsql_stmt(T_WORD, @1, &($1));
 					}
@@ -2004,7 +2004,7 @@ stmt_execsql	: K_IMPORT
 						tok = yylex();
 						plpgsql_push_back_token(tok);
 						if (tok == '=' || tok == COLON_EQUALS ||
-							tok == '[' || tok == '.')
+							tok == '[' || tok == '.' || tok == ARROW)
 							cword_is_not_variable(&($1), @1);
 						$$ = make_execsql_stmt(T_CWORD, @1, NULL);
 					}

@@ -355,6 +355,7 @@ identifier		{ident_start}{ident_cont}*
 typecast		"::"
 dot_dot			\.\.
 colon_equals	":="
+arrow           "->"
 
 /*
  * These operator-like tokens (unlike the above ones) also match the {operator}
@@ -886,6 +887,11 @@ other			.
 					SET_YYLLOC();
 					return COLON_EQUALS;
 				}
+
+{arrow}     	{
+                    SET_YYLLOC();
+                    return ARROW;
+                }
 
 {equals_greater} {
 					SET_YYLLOC();

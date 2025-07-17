@@ -425,7 +425,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 				target_list opt_target_list insert_column_list set_target_list
 				merge_values_clause
 				set_clause_list set_clause
-				def_list operator_def_list indirection opt_indirection
+				def_list operator_def_list indirection opt_indirection arrow_indirection
 				reloption_list TriggerFuncArgs opclass_item_list opclass_drop_list
 				opclass_purpose opt_opfamily transaction_mode_list_or_empty
 				OptTableFuncElementList TableFuncElementList opt_type_modifiers
@@ -675,7 +675,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
  */
 %token <str>	IDENT UIDENT FCONST SCONST USCONST BCONST XCONST Op SESSION_VAR_NAME
 %token <ival>	ICONST PARAM
-%token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER
+%token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER ARROW
 %token			LESS_EQUALS GREATER_EQUALS NOT_EQUALS
 
 /*
@@ -817,7 +817,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %left		AND
 %right		NOT
 %nonassoc	IS ISNULL NOTNULL	/* IS sets precedence for IS NULL, etc */
-%nonassoc	'<' '>' '=' LESS_EQUALS GREATER_EQUALS NOT_EQUALS
+%nonassoc	'<' '>' '=' LESS_EQUALS GREATER_EQUALS NOT_EQUALS ARROW
 %nonassoc	BETWEEN IN_P LIKE ILIKE SIMILAR NOT_LA
 %nonassoc	ESCAPE			/* ESCAPE must be just above LIKE/ILIKE/SIMILAR */
 
@@ -16587,6 +16587,7 @@ sub_type:	ANY										{ $$ = ANY_SUBLINK; }
 
 all_Op:		Op										{ $$ = $1; }
 			| MathOp								{ $$ = $1; }
+			| ARROW                                 { $$ = "->"; }
 		;
 
 MathOp:		 '+'									{ $$ = "+"; }
@@ -16605,6 +16606,8 @@ MathOp:		 '+'									{ $$ = "+"; }
 
 qual_Op:	Op
 					{ $$ = list_make1(makeString($1)); }
+            | ARROW
+					{ $$ = list_make1(makeString("->")); }
 			| OPERATOR '(' any_operator ')'
 					{ $$ = $3; }
 		;
@@ -16944,6 +16947,11 @@ opt_indirection:
 			/*EMPTY*/								{ $$ = NIL; }
 			| opt_indirection indirection_el		{ $$ = lappend($1, $2); }
 		;
+
+arrow_indirection:
+			ARROW AexprConst						{ $$ = list_make1($2); }
+			| arrow_indirection ARROW AexprConst	{ $$ = lappend($1, $3); }
+        ;
 
 opt_asymmetric: ASYMMETRIC
 			| /*EMPTY*/
@@ -17558,12 +17566,26 @@ PLpgSQL_Expr: opt_distinct_clause opt_target_list
  * PL/pgSQL Assignment statement: name opt_indirection := PLpgSQL_Expr
  */
 
-PLAssignStmt: plassign_target opt_indirection plassign_equals PLpgSQL_Expr
+PLAssignStmt:
+            plassign_target opt_indirection plassign_equals PLpgSQL_Expr
 				{
 					PLAssignStmt *n = makeNode(PLAssignStmt);
 
 					n->name = $1;
 					n->indirection = check_indirection($2, yyscanner);
+					n->jsonb_path = NIL;
+					/* nnames will be filled by calling production */
+					n->val = (SelectStmt *) $4;
+					n->location = @1;
+					$$ = (Node *) n;
+				}
+            | plassign_target arrow_indirection plassign_equals PLpgSQL_Expr
+			    {
+					PLAssignStmt *n = makeNode(PLAssignStmt);
+
+					n->name = $1;
+					n->indirection = NIL;
+					n->jsonb_path = $2;
 					/* nnames will be filled by calling production */
 					n->val = (SelectStmt *) $4;
 					n->location = @1;
