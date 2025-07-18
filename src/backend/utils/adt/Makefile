@@ -49,6 +49,7 @@ OBJS = \
 	int8.o \
 	json.o \
 	jsonb.o \
+	jsonb_expanded.o \
 	jsonb_gin.o \
 	jsonb_op.o \
 	jsonb_util.o \

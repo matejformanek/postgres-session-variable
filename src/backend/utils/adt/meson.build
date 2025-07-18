@@ -38,6 +38,7 @@ backend_sources += files(
   'int8.c',
   'json.c',
   'jsonb.c',
+  'jsonb_expanded.c',
   'jsonb_gin.c',
   'jsonb_op.c',
   'jsonb_util.c',

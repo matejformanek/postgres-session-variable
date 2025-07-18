@@ -368,6 +368,34 @@ typedef struct JsonbIterator
 	struct JsonbIterator *parent;
 } JsonbIterator;
 
+typedef struct ExpandedJsonbHeader
+{
+	/* Standard header for expanded objects */
+	ExpandedObjectHeader hdr;
+
+	/*
+	 * If we have a Datum-jsonb representation of the jsonb, it's kept here;
+	 */
+	JsonbValue value;
+
+	/*
+	 * flat_size is the current space requirement for the flat equivalent of
+	 * the expanded array, if known; otherwise it's 0.  We store this to make
+	 * consecutive calls of get_flat_size cheap.
+	 */
+	Size		flat_size;
+
+	/*
+	 * fvalue points to the flat representation if it is valid, else it is
+	 * NULL.  If we have or ever had a flat representation then
+	 * fstartptr/fendptr point to the start and end+1 of its data area; this
+	 * is so that we can tell which Datum pointers point into the flat
+	 * representation rather than being pointers to separately palloc'd data.
+	 */
+	Jsonb	   *fvalue;
+	char	   *fstartptr;		/* start of its data area */
+	char	   *fendptr;		/* end+1 of its data area */
+} ExpandedJsonbHeader;
 
 /* Convenience macros */
 static inline Jsonb *
@@ -436,5 +464,8 @@ extern Datum jsonb_build_object_worker(int nargs, const Datum *args, const bool 
 									   bool unique_keys);
 extern Datum jsonb_build_array_worker(int nargs, const Datum *args, const bool *nulls,
 									  const Oid *types, bool absent_on_null);
+
+extern Datum expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext);
+extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh);
 
 #endif							/* __JSONB_H__ */

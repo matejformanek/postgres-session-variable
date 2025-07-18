@@ -41,6 +41,7 @@
 #include "utils/builtins.h"
 #include "utils/datum.h"
 #include "utils/fmgroids.h"
+#include "utils/jsonb.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
@@ -5145,6 +5146,13 @@ exec_assign_value(PLpgSQL_execstate *estate,
 						newvalue = expand_array(newvalue,
 												estate->datum_context,
 												NULL);
+					}
+					else if (var->datatype->typoid == JSONBOID &&
+						!VARATT_IS_EXTERNAL_EXPANDED_RW(DatumGetPointer(newvalue)))
+					{
+						/* jsonb and not already R/W, so apply expand_jsonb */
+						newvalue = expand_jsonb(newvalue,
+												estate->datum_context);
 					}
 					else
 					{
