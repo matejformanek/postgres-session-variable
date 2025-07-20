@@ -17573,21 +17573,21 @@ PLAssignStmt:
 
 					n->name = $1;
 					n->indirection = check_indirection($2, yyscanner);
-					n->jsonb_path = NIL;
+					n->arrow_ind = NIL;
 					/* nnames will be filled by calling production */
 					n->val = (SelectStmt *) $4;
 					n->location = @1;
 					$$ = (Node *) n;
 				}
-            | plassign_target arrow_indirection plassign_equals PLpgSQL_Expr
+            | plassign_target opt_indirection arrow_indirection plassign_equals PLpgSQL_Expr
 			    {
 					PLAssignStmt *n = makeNode(PLAssignStmt);
 
 					n->name = $1;
-					n->indirection = NIL;
-					n->jsonb_path = $2;
+					n->indirection = check_indirection($2, yyscanner);
+					n->arrow_ind = $3;
 					/* nnames will be filled by calling production */
-					n->val = (SelectStmt *) $4;
+					n->val = (SelectStmt *) $5;
 					n->location = @1;
 					$$ = (Node *) n;
 				}

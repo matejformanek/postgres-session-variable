@@ -706,6 +706,16 @@ typedef struct SubscriptingRef
 	Expr	   *refassgnexpr;
 } SubscriptingRef;
 
+typedef struct ArrowRef
+{
+	Expr		xpr;
+
+	/* Base expression */
+	Expr		*expr;
+	/* Path of arrows to the desired key */
+	List		*arrow_ind;
+} ArrowRef;
+
 /*
  * CoercionContext - distinguishes the allowed set of type casts
  *
@@ -714,6 +724,7 @@ typedef struct SubscriptingRef
  */
 typedef enum CoercionContext
 {
+	COERCION_NONE,				/* do not coerce */
 	COERCION_IMPLICIT,			/* coercion in context of expression */
 	COERCION_ASSIGNMENT,		/* coercion in context of assignment */
 	COERCION_PLPGSQL,			/* if no assignment cast, use CoerceViaIO */

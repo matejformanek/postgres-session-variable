@@ -55,7 +55,6 @@ EA_flatten_into(ExpandedObjectHeader *eohptr,
     Assert(allocated_size == ejbh->flat_size);
 
 	memcpy(result, ejbh->fvalue, allocated_size);
-    elog(WARNING, "Flattening");
 }
 
 Datum

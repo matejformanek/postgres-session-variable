@@ -2745,6 +2745,7 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 	Query	   *qry = makeNode(Query);
 	ColumnRef  *cref = makeNode(ColumnRef);
 	List	   *indirection = stmt->indirection;
+	List	   *arrow_ind = stmt->arrow_ind;
 	int			nnames = stmt->nnames;
 	SelectStmt *sstmt = stmt->val;
 	Node	   *target;
@@ -2841,12 +2842,21 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 										   indirection,
 										   list_head(indirection),
 										   (Node *) tle->expr,
-										   COERCION_PLPGSQL,
+										   arrow_ind != NIL ? COERCION_NONE : COERCION_PLPGSQL,
 										   exprLocation(target));
 	}
-	else if (targettype != type_id &&
-			 (targettype == RECORDOID || ISCOMPLEX(targettype)) &&
-			 (type_id == RECORDOID || ISCOMPLEX(type_id)))
+
+	if (arrow_ind != NIL)
+	{
+		/* Create arrow expression */
+		ArrowRef *arrow = makeNode(ArrowRef);
+		arrow->expr = tle->expr;
+		arrow->arrow_ind = arrow_ind;
+		tle->expr = (Expr *) arrow;
+	}
+	else if (targettype != type_id && !indirection &&
+		 (targettype == RECORDOID || ISCOMPLEX(targettype)) &&
+		 (type_id == RECORDOID || ISCOMPLEX(type_id)))
 	{
 		/*
 		 * Hack: do not let coerce_to_target_type() deal with inconsistent
@@ -2855,7 +2865,7 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 		 * rather bogus, but it's needed for backwards compatibility.
 		 */
 	}
-	else
+	else if (!indirection)
 	{
 		/*
 		 * For normal non-qualified target column, do type checking and

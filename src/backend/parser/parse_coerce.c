@@ -84,6 +84,9 @@ coerce_to_target_type(ParseState *pstate, Node *expr, Oid exprtype,
 	Node	   *result;
 	Node	   *origexpr;
 
+	if (ccontext == COERCION_NONE)
+		return expr;
+
 	if (!can_coerce_type(1, &exprtype, &targettype, ccontext))
 		return NULL;
 

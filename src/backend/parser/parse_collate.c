@@ -703,6 +703,21 @@ assign_collations_walker(Node *node, assign_collations_context *context)
 															&loccontext);
 						}
 						break;
+					case T_ArrowRef:
+						{
+							/*
+							 * Arrow ref indirection collate expression being the variable
+							 * no need to collate the list of arrow indirections itself
+							 * Given that the indirection has no collation and is saved as an expression
+							 * we cant continue down the code so return
+							 */
+							ArrowRef *aexpr = (ArrowRef *) node;
+
+							(void) assign_collations_walker((Node *) aexpr->expr, &loccontext);
+
+							return false;
+						}
+						break;
 					default:
 
 						/*
