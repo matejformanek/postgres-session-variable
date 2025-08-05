@@ -569,6 +569,15 @@ plpgsql_exec_function(PLpgSQL_function *func, FunctionCallInfo fcinfo,
 											  false,
 											  true);
 						}
+						else if (var->datatype->typoid == JSONBOID)
+						{
+							/* flat jsonb, so force to expanded form */
+							assign_simple_var(&estate, var,
+											  expand_jsonb(var->value,
+														   estate.datum_context),
+											  false,
+											  true);
+						}
 					}
 				}
 				break;

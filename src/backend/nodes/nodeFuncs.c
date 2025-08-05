@@ -72,6 +72,9 @@ exprType(const Node *expr)
 		case T_SubscriptingRef:
 			type = ((const SubscriptingRef *) expr)->refrestype;
 			break;
+		case T_ArrowRef:
+			type = UNKNOWNOID;
+			break;
 		case T_FuncExpr:
 			type = ((const FuncExpr *) expr)->funcresulttype;
 			break;
@@ -848,6 +851,9 @@ exprCollation(const Node *expr)
 			break;
 		case T_SubscriptingRef:
 			coll = ((const SubscriptingRef *) expr)->refcollid;
+			break;
+		case T_ArrowRef:
+			coll = InvalidOid;
 			break;
 		case T_FuncExpr:
 			coll = ((const FuncExpr *) expr)->funccollid;
@@ -2192,6 +2198,17 @@ expression_tree_walker_impl(Node *node,
 					return true;
 			}
 			break;
+	case T_ArrowRef:
+		{
+			ArrowRef *arref = (ArrowRef *) node;
+
+			if (WALK(arref->expr))
+				return true;
+			/* also examine arrow ref list */
+			if (LIST_WALK(arref->arrow_ind))
+				return true;
+		}
+		break;
 		case T_FuncExpr:
 			{
 				FuncExpr   *expr = (FuncExpr *) node;
@@ -3090,6 +3107,18 @@ expression_tree_mutator_impl(Node *node,
 					   Expr *);
 
 				return (Node *) newnode;
+			}
+			break;
+		case T_ArrowRef:
+			{
+				ArrowRef *arref = (ArrowRef *) node;
+				ArrowRef *newnode;
+
+				FLATCOPY(newnode, arref, ArrowRef);
+				MUTATE(newnode->expr, arref->expr,
+					   Expr *);
+				MUTATE(newnode->arrow_ind, arref->arrow_ind,
+					   List *);
 			}
 			break;
 		case T_FuncExpr:

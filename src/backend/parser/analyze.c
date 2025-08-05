@@ -2850,8 +2850,18 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 	{
 		/* Create arrow expression */
 		ArrowRef *arrow = makeNode(ArrowRef);
+		List     *const_list = NIL;
+		ListCell *lc;
+
+		foreach(lc, arrow_ind)
+		{
+			Node *a_const = lfirst(lc);
+			Node *transformed = transformExpr(pstate, a_const, EXPR_KIND_UPDATE_TARGET);
+			const_list = lappend(const_list, transformed);
+		}
+
 		arrow->expr = tle->expr;
-		arrow->arrow_ind = arrow_ind;
+		arrow->arrow_ind = const_list;
 		tle->expr = (Expr *) arrow;
 	}
 	else if (targettype != type_id && !indirection &&
