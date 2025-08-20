@@ -17,6 +17,7 @@
 #include "access/tupmacs.h"
 #include "utils/expandeddatum.h"
 #include "utils/jsonb.h"
+#include "utils/jsonfuncs.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 
@@ -116,11 +117,19 @@ deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh)
 {
     if (ejbh->flat_size != 0)
     {
+        JsonbIterator *it = JsonbIteratorInit(&ejbh->fvalue->root);
+        JsonbParseState *st = NULL;
+        bool path_nulls[1] = {false};
+
         MemoryContext oldcxt = MemoryContextSwitchTo(ejbh->hdr.eoh_context);
 
-        JsonbToJsonbValue(ejbh->fvalue, &ejbh->value);
-
         ejbh->flat_size = 0;
+
+        /*
+         * We abuse the setPath function to create an expanded jsonbValue
+         */
+        ejbh->value = *setPath(&it, NULL, path_nulls, 0, &st, 0, NULL, JB_PATH_DELETE);
+
         MemoryContextSwitchTo(oldcxt);
     }
 }

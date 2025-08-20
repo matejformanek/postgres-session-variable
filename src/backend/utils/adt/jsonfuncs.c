@@ -40,16 +40,6 @@
 #include "utils/syscache.h"
 #include "utils/typcache.h"
 
-/* Operations available for setPath */
-#define JB_PATH_CREATE					0x0001
-#define JB_PATH_DELETE					0x0002
-#define JB_PATH_REPLACE					0x0004
-#define JB_PATH_INSERT_BEFORE			0x0008
-#define JB_PATH_INSERT_AFTER			0x0010
-#define JB_PATH_CREATE_OR_INSERT \
-	(JB_PATH_INSERT_BEFORE | JB_PATH_INSERT_AFTER | JB_PATH_CREATE)
-#define JB_PATH_FILL_GAPS				0x0020
-#define JB_PATH_CONSISTENT_POSITION		0x0040
 
 /* state for json_object_keys */
 typedef struct OkeysState
@@ -361,6 +351,7 @@ static text *get_worker(text *json, char **tpath, int *ipath, int npath,
 						bool normalize_results);
 static Datum get_jsonb_path_all(FunctionCallInfo fcinfo, bool as_text);
 static text *JsonbValueAsText(JsonbValue *v);
+static Datum get_jsonb_element_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal, int keyLen);
 
 /* semantic action functions for json_array_length */
 static JsonParseErrorType alen_object_start(void *state);
@@ -476,10 +467,6 @@ static Datum populate_domain(DomainIOData *io, Oid typid, const char *colname,
 /* functions supporting jsonb_delete, jsonb_set and jsonb_concat */
 static JsonbValue *IteratorConcat(JsonbIterator **it1, JsonbIterator **it2,
 								  JsonbParseState **state);
-static JsonbValue *setPath(JsonbIterator **it, Datum *path_elems,
-						   bool *path_nulls, int path_len,
-						   JsonbParseState **st, int level, JsonbValue *newval,
-						   int op_type);
 static void setPathObject(JsonbIterator **it, Datum *path_elems,
 						  bool *path_nulls, int path_len, JsonbParseState **st,
 						  int level,
@@ -860,10 +847,27 @@ json_object_field(PG_FUNCTION_ARGS)
 Datum
 jsonb_object_field(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	text	   *key = PG_GETARG_TEXT_PP(1);
 	JsonbValue *v;
 	JsonbValue	vbuf;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+	{
+		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
+
+		/*
+		 * If the value has not been deconstructed yet -> use the flat value
+		 */
+		if (ejbh->flat_size != 0)
+			jb = ejbh->fvalue;
+		else
+			return get_jsonb_element_expanded(ejbh,
+											  VARDATA_ANY(key),
+											  VARSIZE_ANY_EXHDR(key));
+	}
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	if (!JB_ROOT_IS_OBJECT(jb))
 		PG_RETURN_NULL();
@@ -1672,6 +1676,19 @@ jsonb_get_element(Jsonb *jb, Datum *path, int npath, bool *isnull, bool as_text)
 		/* not text mode - just hand back the jsonb */
 		PG_RETURN_JSONB_P(res);
 	}
+}
+
+static Datum
+get_jsonb_element_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal, int keyLen)
+{
+	/*
+	 * Deconstruct jsonb if we haven't already.  Note that we apply this even
+	 * if the input is nominally read-only: it should be safe enough.
+	 */
+	deconstruct_expanded_jsonb(ejbh);
+
+
+	return (Datum) 0;
 }
 
 Datum
@@ -5177,7 +5194,7 @@ IteratorConcat(JsonbIterator **it1, JsonbIterator **it2,
  * All path elements before the last must already exist
  * whatever bits in op_type are set, or nothing is done.
  */
-static JsonbValue *
+JsonbValue *
 setPath(JsonbIterator **it, Datum *path_elems,
 		bool *path_nulls, int path_len,
 		JsonbParseState **st, int level, JsonbValue *newval, int op_type)
