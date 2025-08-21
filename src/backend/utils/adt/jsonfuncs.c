@@ -35,10 +35,13 @@
 #include "utils/json.h"
 #include "utils/jsonb.h"
 #include "utils/jsonfuncs.h"
+
+#include "catalog/pg_collation_d.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
 #include "utils/typcache.h"
+#include "utils/varlena.h"
 
 
 /* state for json_object_keys */
@@ -351,7 +354,10 @@ static text *get_worker(text *json, char **tpath, int *ipath, int npath,
 						bool normalize_results);
 static Datum get_jsonb_path_all(FunctionCallInfo fcinfo, bool as_text);
 static text *JsonbValueAsText(JsonbValue *v);
-static Datum get_jsonb_element_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal, int keyLen);
+static Datum jsonb_object_field_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal,
+										 int keyLen, bool *isnull, bool istext);
+static Datum jsonb_array_element_expanded(ExpandedJsonbHeader *ejbh, int element,
+										  bool *isnull, bool istext);
 
 /* semantic action functions for json_array_length */
 static JsonParseErrorType alen_object_start(void *state);
@@ -853,19 +859,11 @@ jsonb_object_field(PG_FUNCTION_ARGS)
 	JsonbValue	vbuf;
 
 	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
-	{
-		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
-
-		/*
-		 * If the value has not been deconstructed yet -> use the flat value
-		 */
-		if (ejbh->flat_size != 0)
-			jb = ejbh->fvalue;
-		else
-			return get_jsonb_element_expanded(ejbh,
-											  VARDATA_ANY(key),
-											  VARSIZE_ANY_EXHDR(key));
-	}
+		return jsonb_object_field_expanded((ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0)),
+										   VARDATA_ANY(key),
+										   VARSIZE_ANY_EXHDR(key),
+										   &fcinfo->isnull,
+										   false);
 	else
 		jb = PG_GETARG_JSONB_P(0);
 
@@ -902,10 +900,19 @@ json_object_field_text(PG_FUNCTION_ARGS)
 Datum
 jsonb_object_field_text(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	text	   *key = PG_GETARG_TEXT_PP(1);
 	JsonbValue *v;
 	JsonbValue	vbuf;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+		return jsonb_object_field_expanded((ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0)),
+										   VARDATA_ANY(key),
+										   VARSIZE_ANY_EXHDR(key),
+										   &fcinfo->isnull,
+										   true);
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	if (!JB_ROOT_IS_OBJECT(jb))
 		PG_RETURN_NULL();
@@ -939,9 +946,17 @@ json_array_element(PG_FUNCTION_ARGS)
 Datum
 jsonb_array_element(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	int			element = PG_GETARG_INT32(1);
 	JsonbValue *v;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+		return jsonb_array_element_expanded((ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0)),
+											element,
+											&fcinfo->isnull,
+											false);
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	if (!JB_ROOT_IS_ARRAY(jb))
 		PG_RETURN_NULL();
@@ -982,9 +997,17 @@ json_array_element_text(PG_FUNCTION_ARGS)
 Datum
 jsonb_array_element_text(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	int			element = PG_GETARG_INT32(1);
 	JsonbValue *v;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+		return jsonb_array_element_expanded((ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0)),
+											element,
+											&fcinfo->isnull,
+											true);
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	if (!JB_ROOT_IS_ARRAY(jb))
 		PG_RETURN_NULL();
@@ -1679,16 +1702,73 @@ jsonb_get_element(Jsonb *jb, Datum *path, int npath, bool *isnull, bool as_text)
 }
 
 static Datum
-get_jsonb_element_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal, int keyLen)
+jsonb_object_field_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal,
+							int keyLen, bool *isnull, bool istext)
 {
+	JsonbPair *obj;
+	int nPairs;
+
 	/*
 	 * Deconstruct jsonb if we haven't already.  Note that we apply this even
 	 * if the input is nominally read-only: it should be safe enough.
 	 */
 	deconstruct_expanded_jsonb(ejbh);
 
+	if (ejbh->value->type != jbvObject)
+	{
+		*isnull = true;
+		return (Datum) 0;
+	}
 
+	obj = ejbh->value->val.object.pairs;
+	nPairs = ejbh->value->val.object.nPairs;
+
+	for (int i = 0; i < nPairs; i++)
+		if (varstr_cmp(obj[i].key.val.string.val, obj[i].key.val.string.len,
+					keyVal, keyLen, DEFAULT_COLLATION_OID) == 0)
+			return istext ? PointerGetDatum(JsonbValueAsText(&obj[i].value))
+						  : create_nested_expanded_jsonb(&obj[i].value, ejbh->hdr.eoh_context);
+
+	*isnull = true;
 	return (Datum) 0;
+}
+
+static Datum
+jsonb_array_element_expanded(ExpandedJsonbHeader *ejbh, int element,
+							 bool *isnull, bool istext)
+{
+	JsonbValue *arr;
+	int nElems;
+
+	/*
+	 * Deconstruct jsonb if we haven't already.  Note that we apply this even
+	 * if the input is nominally read-only: it should be safe enough.
+	 */
+	deconstruct_expanded_jsonb(ejbh);
+
+	if (ejbh->value->type != jbvArray)
+	{
+		*isnull = true;
+		return (Datum) 0;
+	}
+
+	arr = ejbh->value->val.array.elems;
+	nElems = ejbh->value->val.array.nElems;
+
+	/* Handle negative & overflowing subscript */
+	if (element < 0 || element >= nElems)
+	{
+		if (pg_abs_s32(element) > nElems || element == nElems)
+		{
+			*isnull = true;
+			return (Datum) 0;
+		}
+		else
+			element += nElems;
+	}
+
+	return istext ? PointerGetDatum(JsonbValueAsText(&arr[element]))
+				  : create_nested_expanded_jsonb(&arr[element], ejbh->hdr.eoh_context);
 }
 
 Datum

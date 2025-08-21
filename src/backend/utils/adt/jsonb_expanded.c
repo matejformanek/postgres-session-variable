@@ -37,8 +37,11 @@ static Size
 EA_get_flat_size(ExpandedObjectHeader *eohptr)
 {
     ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) eohptr;
-    /* If we remember flat_size then no deconstruction was done  */
-    Jsonb *jsonb = ejbh->flat_size == 0 ? JsonbValueToJsonb(&ejbh->value) : ejbh->fvalue;
+    /* If we remember flat_size then no deconstruction was done,
+     * The complexity to get the size is similar to converting it to flat value.
+     * Rather than do it twice, convert it here.
+     */
+    Jsonb *jsonb = ejbh->flat_size == 0 ? JsonbValueToJsonb(ejbh->value) : ejbh->fvalue;
 
     ejbh->flat_size = VARSIZE(jsonb);
     ejbh->fvalue = jsonb;
@@ -128,8 +131,43 @@ deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh)
         /*
          * We abuse the setPath function to create an expanded jsonbValue
          */
-        ejbh->value = *setPath(&it, NULL, path_nulls, 0, &st, 0, NULL, JB_PATH_DELETE);
+        ejbh->value = setPath(&it, NULL, path_nulls, 0, &st, 0, NULL, JB_PATH_DELETE);
 
         MemoryContextSwitchTo(oldcxt);
     }
+}
+
+/*
+ * Support function for jsonb getters.
+ * With each arrow nesting, we need to return a valid Datum.
+ * Rather than automatically convert to Jsonb* return pointer to Expanded JsonbValue.
+ * This way, we can keep using expanded version as long as we nest deeper and flatten only when needed.
+ */
+Datum
+create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext)
+{
+    ExpandedJsonbHeader *ejbh;
+    MemoryContext objcxt;
+
+    /*
+     * Allocate private context for expanded object.  We start by assuming
+     * that the array won't be very large; but if it does grow a lot, don't
+     * constrain aset.c's large-context behavior.
+     */
+    objcxt = AllocSetContextCreate(parentcontext,
+                                   "expanded jsonb",
+                                   ALLOCSET_START_SMALL_SIZES);
+
+    /* Set up expanded jsonb header */
+    ejbh = (ExpandedJsonbHeader *)
+        MemoryContextAlloc(objcxt, sizeof(ExpandedJsonbHeader));
+
+    EOH_init_header(&ejbh->hdr, &EA_methods, objcxt);
+
+    ejbh->value = val;
+
+    ejbh->flat_size = 0;
+
+    /* return a R/W pointer to the expanded jsonb */
+    return EOHPGetRWDatum(&ejbh->hdr);
 }

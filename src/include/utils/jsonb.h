@@ -376,7 +376,7 @@ typedef struct ExpandedJsonbHeader
 	/*
 	 * If we have a Datum-jsonb representation of the jsonb, it's kept here;
 	 */
-	JsonbValue value;
+	JsonbValue *value;
 
 	/*
 	 * flat_size is the current space requirement for the flat equivalent of
@@ -467,5 +467,6 @@ extern Datum jsonb_build_array_worker(int nargs, const Datum *args, const bool *
 
 extern Datum expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext);
 extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh);
+extern Datum create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext);
 
 #endif							/* __JSONB_H__ */
