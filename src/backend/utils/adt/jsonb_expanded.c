@@ -41,7 +41,7 @@ EA_get_flat_size(ExpandedObjectHeader *eohptr)
      * The complexity to get the size is similar to converting it to flat value.
      * Rather than do it twice, convert it here.
      */
-    Jsonb *jsonb = ejbh->flat_size == 0 ? JsonbValueToJsonb(ejbh->value) : ejbh->fvalue;
+    Jsonb *jsonb = ejbh->is_expanded == true ? JsonbValueToJsonb(ejbh->value) : ejbh->fvalue;
 
     ejbh->flat_size = VARSIZE(jsonb);
     ejbh->fvalue = jsonb;
@@ -97,6 +97,7 @@ expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext)
     jsonb = DatumGetJsonbPCopy(jsonbdatum);
     MemoryContextSwitchTo(oldcxt);
 
+    ejbh->is_expanded = false;
     ejbh->flat_size = VARSIZE(jsonb);
 
 	/*
@@ -118,23 +119,37 @@ expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext)
 void
 deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh)
 {
-    if (ejbh->flat_size != 0)
-    {
-        JsonbIterator *it = JsonbIteratorInit(&ejbh->fvalue->root);
-        JsonbParseState *st = NULL;
-        bool path_nulls[1] = {false};
+    if (ejbh->is_expanded)
+        return;
 
-        MemoryContext oldcxt = MemoryContextSwitchTo(ejbh->hdr.eoh_context);
+    ejbh->flat_size = 0;
+    ejbh->is_expanded = true;
 
-        ejbh->flat_size = 0;
+    ejbh->value = JsonbToDecomposedJsonbValue(ejbh->fvalue, ejbh->hdr.eoh_context);
+}
 
-        /*
-         * We abuse the setPath function to create an expanded jsonbValue
-         */
-        ejbh->value = setPath(&it, NULL, path_nulls, 0, &st, 0, NULL, JB_PATH_DELETE);
+/*
+ * Turn Jsonb* into a fully decomposed JsonbValue
+ * Unlike JsonbToJsonbValue() we don't stop at the conversion to binary
+ * but do a full decomposition to each type.
+ */
+JsonbValue *
+JsonbToDecomposedJsonbValue(Jsonb *jsonb, MemoryContext parentcontext)
+{
+    JsonbValue      *jbval;
+    JsonbParseState *st = NULL;
+    JsonbIterator   *it = JsonbIteratorInit(&jsonb->root);
+    bool	         pn[1] = {false};
+    MemoryContext    oldcxt = MemoryContextSwitchTo(parentcontext);
 
-        MemoryContextSwitchTo(oldcxt);
-    }
+    /*
+     * We abuse the setPath function to create an expanded/decomposed jsonbValue
+     */
+    jbval = setPath(&it, NULL, pn, 0, &st, 0, NULL, JB_PATH_DELETE);
+
+    MemoryContextSwitchTo(oldcxt);
+
+    return jbval;
 }
 
 /*
@@ -167,6 +182,7 @@ create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext)
     ejbh->value = val;
 
     ejbh->flat_size = 0;
+    ejbh->is_expanded = true;
 
     /* return a R/W pointer to the expanded jsonb */
     return EOHPGetRWDatum(&ejbh->hdr);

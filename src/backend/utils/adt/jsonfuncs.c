@@ -481,6 +481,8 @@ static void setPathArray(JsonbIterator **it, Datum *path_elems,
 						 bool *path_nulls, int path_len, JsonbParseState **st,
 						 int level,
 						 JsonbValue *newval, uint32 nelems, int op_type);
+static Datum setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
+							 int path_len, JsonbValue *newval, int op_type);
 
 /* function supporting iterate_json_values */
 static JsonParseErrorType iterate_values_scalar(void *state, char *token, JsonTokenType tokentype);
@@ -4941,7 +4943,7 @@ jsonb_delete_idx(PG_FUNCTION_ARGS)
 Datum
 jsonb_set(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *in = PG_GETARG_JSONB_P(0);
+	Jsonb	   *in;
 	ArrayType  *path = PG_GETARG_ARRAYTYPE_P(1);
 	Jsonb	   *newjsonb = PG_GETARG_JSONB_P(2);
 	JsonbValue	newval;
@@ -4955,10 +4957,23 @@ jsonb_set(PG_FUNCTION_ARGS)
 
 	JsonbToJsonbValue(newjsonb, &newval);
 
+	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
+
 	if (ARR_NDIM(path) > 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("wrong number of array subscripts")));
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+	{
+		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
+
+		return setPathExtended(ejbh, path_elems, path_len,
+							   JsonbToDecomposedJsonbValue(newjsonb, ejbh->hdr.eoh_context),
+							   create ? JB_PATH_CREATE : JB_PATH_REPLACE);
+	}
+	else
+		in = PG_GETARG_JSONB_P(0);
 
 	if (JB_ROOT_IS_SCALAR(in))
 		ereport(ERROR,
@@ -4967,8 +4982,6 @@ jsonb_set(PG_FUNCTION_ARGS)
 
 	if (JB_ROOT_COUNT(in) == 0 && !create)
 		PG_RETURN_JSONB_P(in);
-
-	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
 
 	if (path_len == 0)
 		PG_RETURN_JSONB_P(in);
@@ -5057,7 +5070,7 @@ jsonb_set_lax(PG_FUNCTION_ARGS)
 Datum
 jsonb_delete_path(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *in = PG_GETARG_JSONB_P(0);
+	Jsonb	   *in;
 	ArrayType  *path = PG_GETARG_ARRAYTYPE_P(1);
 	JsonbValue *res = NULL;
 	Datum	   *path_elems;
@@ -5066,10 +5079,19 @@ jsonb_delete_path(PG_FUNCTION_ARGS)
 	JsonbIterator *it;
 	JsonbParseState *st = NULL;
 
+	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
+
 	if (ARR_NDIM(path) > 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("wrong number of array subscripts")));
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+		return setPathExtended((ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0)),
+							   path_elems, path_len, NULL,
+							   JB_PATH_DELETE);
+	else
+		in = PG_GETARG_JSONB_P(0);
 
 	if (JB_ROOT_IS_SCALAR(in))
 		ereport(ERROR,
@@ -5078,8 +5100,6 @@ jsonb_delete_path(PG_FUNCTION_ARGS)
 
 	if (JB_ROOT_COUNT(in) == 0)
 		PG_RETURN_JSONB_P(in);
-
-	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
 
 	if (path_len == 0)
 		PG_RETURN_JSONB_P(in);
@@ -5100,7 +5120,7 @@ jsonb_delete_path(PG_FUNCTION_ARGS)
 Datum
 jsonb_insert(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *in = PG_GETARG_JSONB_P(0);
+	Jsonb	   *in;
 	ArrayType  *path = PG_GETARG_ARRAYTYPE_P(1);
 	Jsonb	   *newjsonb = PG_GETARG_JSONB_P(2);
 	JsonbValue	newval;
@@ -5112,22 +5132,33 @@ jsonb_insert(PG_FUNCTION_ARGS)
 	JsonbIterator *it;
 	JsonbParseState *st = NULL;
 
-	JsonbToJsonbValue(newjsonb, &newval);
+	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
 
 	if (ARR_NDIM(path) > 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 				 errmsg("wrong number of array subscripts")));
 
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+	{
+		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
+
+		return setPathExtended(ejbh, path_elems, path_len,
+							   JsonbToDecomposedJsonbValue(newjsonb, ejbh->hdr.eoh_context),
+							   after ? JB_PATH_INSERT_AFTER : JB_PATH_INSERT_BEFORE);
+	}
+	else
+		in = PG_GETARG_JSONB_P(0);
+
 	if (JB_ROOT_IS_SCALAR(in))
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("cannot set path in scalar")));
 
-	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
-
 	if (path_len == 0)
 		PG_RETURN_JSONB_P(in);
+
+	JsonbToJsonbValue(newjsonb, &newval);
 
 	it = JsonbIteratorInit(&in->root);
 
@@ -5247,6 +5278,7 @@ IteratorConcat(JsonbIterator **it1, JsonbIterator **it2,
 
 /*
  * Do most of the heavy work for jsonb_set/jsonb_insert
+ * Also we can abuse this function to recreate an expanded JsonbValue tree
  *
  * If JB_PATH_DELETE bit is set in op_type, the element is to be removed.
  *
@@ -5351,6 +5383,95 @@ setPath(JsonbIterator **it, Datum *path_elems,
 	}
 
 	return res;
+}
+
+static Datum
+setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
+				int path_len, JsonbValue *newval, int op_type)
+{
+	text *pathelem = NULL;
+	JsonbValue *val;
+
+	deconstruct_expanded_jsonb(ejbh);
+
+	val = ejbh->value;
+
+	for (int level = 0; level < path_len; level++)
+	{
+		if (val->type == jbvObject)
+		{
+			int i = 0;
+			bool found = false;
+			pathelem = DatumGetTextPP(path_elems[level]);
+
+			/* Try and find the requested path key */
+			for (i = 0; i < val->val.object.nPairs; i++)
+				if (val->val.object.pairs[i].key.val.string.len == VARSIZE_ANY_EXHDR(pathelem) &&
+					memcmp(val->val.object.pairs[i].key.val.string.val, VARDATA_ANY(pathelem),
+						   val->val.object.pairs[i].key.val.string.len) == 0)
+				{
+					found = true;
+					break;
+				}
+
+			if (level == path_len - 1)
+			{
+				if (op_type == JB_PATH_DELETE && found)
+				{
+					--val->val.object.nPairs;
+					for (int j = i; j < val->val.object.nPairs; j++)
+						val->val.object.pairs[j] = val->val.object.pairs[j + 1];
+				}
+				else if (op_type & (JB_PATH_INSERT_BEFORE | JB_PATH_INSERT_AFTER) ||
+						 (op_type & JB_PATH_CREATE && !found))
+				{
+					MemoryContext oldcxt;
+					JsonbPair *newpairs = val->val.object.pairs;
+
+					/*
+					 * called from jsonb_insert(), it forbids redefining an
+					 * existing value
+					 */
+					if (found)
+						ereport(ERROR,
+								(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+								 errmsg("cannot replace existing key"),
+								 errhint("Try using the function jsonb_set "
+										 "to replace key value.")));
+
+					if (val->val.object.nPairs >= JSONB_MAX_PAIRS)
+						ereport(ERROR,
+								(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+								 errmsg("number of jsonb object pairs exceeds the maximum allowed (%zu)",
+										JSONB_MAX_PAIRS)));
+
+					oldcxt = MemoryContextSwitchTo(ejbh->hdr.eoh_context);
+
+					newpairs = (JsonbPair *) repalloc(newpairs , sizeof(JsonbPair) * (val->val.object.nPairs + 1));
+
+					newpairs[val->val.object.nPairs].key.type = jbvString;
+					newpairs[val->val.object.nPairs].key.val.string.val = VARDATA_ANY(pathelem);
+					newpairs[val->val.object.nPairs].key.val.string.len = VARSIZE_ANY_EXHDR(pathelem);
+					newpairs[val->val.object.nPairs++].value = *newval;
+
+					MemoryContextSwitchTo(oldcxt);
+				}
+				else if (op_type & (JB_PATH_REPLACE | JB_PATH_CREATE) && found)
+					val->val.object.pairs[i].value = *newval;
+			}
+			else if (!found) /* Invalid path */
+				break;
+			else /* Continue traversing down the existing path */
+				val = &val->val.object.pairs[i].value;
+		}
+		else if (val->type == jbvArray)
+		{
+
+		}
+		else;
+	}
+
+	return create_nested_expanded_jsonb(ejbh->value, ejbh->hdr.eoh_context);
 }
 
 /*

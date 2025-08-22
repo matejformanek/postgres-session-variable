@@ -24,18 +24,6 @@
 #include "utils/memutils.h"
 #include "utils/varlena.h"
 
-/*
- * Maximum number of elements in an array (or key/value pairs in an object).
- * This is limited by two things: the size of the JEntry array must fit
- * in MaxAllocSize, and the number of elements (or pairs) must fit in the bits
- * reserved for that in the JsonbContainer.header field.
- *
- * (The total size of an array's or object's elements is also limited by
- * JENTRY_OFFLENMASK, but we're not concerned about that here.)
- */
-#define JSONB_MAX_ELEMS (Min(MaxAllocSize / sizeof(JsonbValue), JB_CMASK))
-#define JSONB_MAX_PAIRS (Min(MaxAllocSize / sizeof(JsonbPair), JB_CMASK))
-
 static void fillJsonbValue(JsonbContainer *container, int index,
 						   char *base_addr, uint32 offset,
 						   JsonbValue *result);

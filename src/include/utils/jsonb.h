@@ -158,6 +158,18 @@ typedef uint32 JEntry;
 #define JBE_ISBOOL_FALSE(je_)	(((je_) & JENTRY_TYPEMASK) == JENTRY_ISBOOL_FALSE)
 #define JBE_ISBOOL(je_)			(JBE_ISBOOL_TRUE(je_) || JBE_ISBOOL_FALSE(je_))
 
+/*
+ * Maximum number of elements in an array (or key/value pairs in an object).
+ * This is limited by two things: the size of the JEntry array must fit
+ * in MaxAllocSize, and the number of elements (or pairs) must fit in the bits
+ * reserved for that in the JsonbContainer.header field.
+ *
+ * (The total size of an array's or object's elements is also limited by
+ * JENTRY_OFFLENMASK, but we're not concerned about that here.)
+ */
+#define JSONB_MAX_ELEMS (Min(MaxAllocSize / sizeof(JsonbValue), JB_CMASK))
+#define JSONB_MAX_PAIRS (Min(MaxAllocSize / sizeof(JsonbPair), JB_CMASK))
+
 /* Macro for advancing an offset variable to the next JEntry */
 #define JBE_ADVANCE_OFFSET(offset, je) \
 	do { \
@@ -377,11 +389,11 @@ typedef struct ExpandedJsonbHeader
 	 * If we have a Datum-jsonb representation of the jsonb, it's kept here;
 	 */
 	JsonbValue *value;
+	bool		is_expanded;
 
 	/*
 	 * flat_size is the current space requirement for the flat equivalent of
-	 * the expanded array, if known; otherwise it's 0.  We store this to make
-	 * consecutive calls of get_flat_size cheap.
+	 * the expanded jsonb, if known;
 	 */
 	Size		flat_size;
 
@@ -465,8 +477,10 @@ extern Datum jsonb_build_object_worker(int nargs, const Datum *args, const bool 
 extern Datum jsonb_build_array_worker(int nargs, const Datum *args, const bool *nulls,
 									  const Oid *types, bool absent_on_null);
 
+/* jsonb_expanded.c support functions */
 extern Datum expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext);
 extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh);
 extern Datum create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext);
+extern JsonbValue *JsonbToDecomposedJsonbValue(Jsonb *jsonb, MemoryContext parentcontext);
 
 #endif							/* __JSONB_H__ */
