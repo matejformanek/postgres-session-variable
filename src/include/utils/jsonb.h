@@ -483,5 +483,6 @@ extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh);
 extern Datum create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext);
 extern JsonbValue *JsonbToDecomposedJsonbValue(Jsonb *jsonb, MemoryContext parentcontext);
 extern char *JsonbValueToCString(StringInfo out, JsonbValue *in, int estimated_len);
+extern char *JsonbValueToCStringIndent(StringInfo out, JsonbValue *in, int estimated_len);
 
 #endif							/* __JSONB_H__ */

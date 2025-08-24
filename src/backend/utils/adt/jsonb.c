@@ -507,6 +507,12 @@ JsonbValueToCString(StringInfo out, JsonbValue *in, int estimated_len)
 	return JsonbValueToCStringWorker(out, in, estimated_len, 0, false);
 }
 
+char *
+JsonbValueToCStringIndent(StringInfo out, JsonbValue *in, int estimated_len)
+{
+	return JsonbValueToCStringWorker(out, in, estimated_len, 0, true);
+}
+
 
 /*
  * common worker for above two functions
@@ -653,36 +659,50 @@ JsonbValueToCStringWorker(StringInfo out, JsonbValue *in, int estimated_len, int
 	{
 		case jbvObject:
 			appendStringInfoCharMacro(out, '{');
+			add_indent(out, indent, level + 1);
 
 			for (int pair_idx = 0; pair_idx < in->val.object.nPairs; pair_idx++)
 			{
 				if (pair_idx)
+				{
 					appendBinaryStringInfo(out, ", ", ispaces);
+					add_indent(out, indent, level + 1);
+				}
 
 				jsonb_put_escaped_value(out, &in->val.object.pairs[pair_idx].key);
 				appendBinaryStringInfo(out, ": ", 2);
 
 				(void) JsonbValueToCStringWorker(out, &in->val.object.pairs[pair_idx].value,
-												 0, level + 1, indent);
+												 0, level + 2, indent);
 			}
 
+			add_indent(out, indent, level);
 			appendStringInfoCharMacro(out, '}');
 			break;
 		case jbvArray:
 			if (!in->val.array.rawScalar)
+			{
 				appendStringInfoCharMacro(out, '[');
+				add_indent(out, indent, level);
+			}
 
 			for (int elem_idx = 0; elem_idx < in->val.array.nElems; elem_idx++)
 			{
 				if (elem_idx)
+				{
 					appendBinaryStringInfo(out, ", ", ispaces);
+					add_indent(out, indent, level);
+				}
 
 				(void) JsonbValueToCStringWorker(out, &in->val.array.elems[elem_idx],
 												 0, level + 1, indent);
 			}
 
 			if (!in->val.array.rawScalar)
+			{
+				add_indent(out, indent, level -1);
 				appendStringInfoCharMacro(out, ']');
+			}
 			break;
 		case jbvNull:
 		case jbvString:

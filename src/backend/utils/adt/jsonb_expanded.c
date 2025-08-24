@@ -122,7 +122,6 @@ deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh)
     if (ejbh->is_expanded)
         return;
 
-    ejbh->flat_size = 0;
     ejbh->is_expanded = true;
 
     ejbh->value = JsonbToDecomposedJsonbValue(ejbh->fvalue, ejbh->hdr.eoh_context);

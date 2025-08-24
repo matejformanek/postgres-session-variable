@@ -1729,7 +1729,7 @@ jsonb_object_field_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal,
 		if (varstr_cmp(obj[i].key.val.string.val, obj[i].key.val.string.len,
 					keyVal, keyLen, DEFAULT_COLLATION_OID) == 0)
 			return istext ? PointerGetDatum(JsonbValueAsText(&obj[i].value))
-						  : create_nested_expanded_jsonb(&obj[i].value, ejbh->hdr.eoh_context);
+						  : create_nested_expanded_jsonb(&obj[i].value, CurrentMemoryContext);
 
 	*isnull = true;
 	return (Datum) 0;
@@ -1770,7 +1770,7 @@ jsonb_array_element_expanded(ExpandedJsonbHeader *ejbh, int element,
 	}
 
 	return istext ? PointerGetDatum(JsonbValueAsText(&arr[element]))
-				  : create_nested_expanded_jsonb(&arr[element], ejbh->hdr.eoh_context);
+				  : create_nested_expanded_jsonb(&arr[element], CurrentMemoryContext);
 }
 
 Datum
@@ -4682,8 +4682,23 @@ jsonb_strip_nulls(PG_FUNCTION_ARGS)
 Datum
 jsonb_pretty(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	StringInfo	str = makeStringInfo();
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+	{
+		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
+
+		if (ejbh->is_expanded)
+		{
+			JsonbValueToCStringIndent(str, ejbh->value, ejbh->flat_size);
+			PG_RETURN_TEXT_P(cstring_to_text_with_len(str->data, str->len));
+		}
+		else
+			jb = ejbh->fvalue;
+	}
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	JsonbToCStringIndent(str, &jb->root, VARSIZE(jb));
 
@@ -5575,7 +5590,7 @@ setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 			elog(ERROR, "unrecognized extended jsonb type");
 	}
 
-	return create_nested_expanded_jsonb(ejbh->value, ejbh->hdr.eoh_context);
+	return create_nested_expanded_jsonb(ejbh->value, CurrentMemoryContext);
 }
 
 /*
