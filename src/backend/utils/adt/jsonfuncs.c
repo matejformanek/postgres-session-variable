@@ -4955,8 +4955,6 @@ jsonb_set(PG_FUNCTION_ARGS)
 	JsonbIterator *it;
 	JsonbParseState *st = NULL;
 
-	JsonbToJsonbValue(newjsonb, &newval);
-
 	deconstruct_array_builtin(path, TEXTOID, &path_elems, &path_nulls, &path_len);
 
 	if (ARR_NDIM(path) > 1)
@@ -4985,6 +4983,8 @@ jsonb_set(PG_FUNCTION_ARGS)
 
 	if (path_len == 0)
 		PG_RETURN_JSONB_P(in);
+
+	JsonbToJsonbValue(newjsonb, &newval);
 
 	it = JsonbIteratorInit(&in->root);
 
@@ -5389,7 +5389,6 @@ static Datum
 setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 				int path_len, JsonbValue *newval, int op_type)
 {
-	text *pathelem = NULL;
 	JsonbValue *val;
 
 	deconstruct_expanded_jsonb(ejbh);
@@ -5400,15 +5399,15 @@ setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 	{
 		if (val->type == jbvObject)
 		{
-			int i = 0;
-			bool found = false;
-			pathelem = DatumGetTextPP(path_elems[level]);
+			int   found_idx = 0;
+			bool  found = false;
+			text *pathelem = DatumGetTextPP(path_elems[level]);
 
 			/* Try and find the requested path key */
-			for (i = 0; i < val->val.object.nPairs; i++)
-				if (val->val.object.pairs[i].key.val.string.len == VARSIZE_ANY_EXHDR(pathelem) &&
-					memcmp(val->val.object.pairs[i].key.val.string.val, VARDATA_ANY(pathelem),
-						   val->val.object.pairs[i].key.val.string.len) == 0)
+			for (found_idx = 0; found_idx < val->val.object.nPairs; found_idx++)
+				if (val->val.object.pairs[found_idx].key.val.string.len == VARSIZE_ANY_EXHDR(pathelem) &&
+					memcmp(val->val.object.pairs[found_idx].key.val.string.val, VARDATA_ANY(pathelem),
+						   val->val.object.pairs[found_idx].key.val.string.len) == 0)
 				{
 					found = true;
 					break;
@@ -5416,10 +5415,10 @@ setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 
 			if (level == path_len - 1)
 			{
-				if (op_type == JB_PATH_DELETE && found)
+				if (op_type & JB_PATH_DELETE && found)
 				{
 					--val->val.object.nPairs;
-					for (int j = i; j < val->val.object.nPairs; j++)
+					for (int j = found_idx; j < val->val.object.nPairs; j++)
 						val->val.object.pairs[j] = val->val.object.pairs[j + 1];
 				}
 				else if (op_type & (JB_PATH_INSERT_BEFORE | JB_PATH_INSERT_AFTER) ||
@@ -5452,23 +5451,123 @@ setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 					newpairs[val->val.object.nPairs].key.type = jbvString;
 					newpairs[val->val.object.nPairs].key.val.string.val = VARDATA_ANY(pathelem);
 					newpairs[val->val.object.nPairs].key.val.string.len = VARSIZE_ANY_EXHDR(pathelem);
-					newpairs[val->val.object.nPairs++].value = *newval;
+					newpairs[val->val.object.nPairs++].value = newval->val.array.nElems == 1 &&
+															   newval->val.array.elems[0].type != jbvArray ?
+																			    newval->val.array.elems[0] :
+																			    *newval;
 
+					val->val.object.pairs = newpairs;
 					MemoryContextSwitchTo(oldcxt);
 				}
 				else if (op_type & (JB_PATH_REPLACE | JB_PATH_CREATE) && found)
-					val->val.object.pairs[i].value = *newval;
+					val->val.object.pairs[found_idx].value = newval->val.array.nElems == 1 &&
+														     newval->val.array.elems[0].type != jbvArray ?
+												  							  newval->val.array.elems[0] :
+												  							  *newval;
 			}
 			else if (!found) /* Invalid path */
 				break;
 			else /* Continue traversing down the existing path */
-				val = &val->val.object.pairs[i].value;
+				val = &val->val.object.pairs[found_idx].value;
 		}
 		else if (val->type == jbvArray)
 		{
+			char	   *c = TextDatumGetCString(path_elems[level]);
+			char	   *badp;
+			int			idx, nelems = val->val.array.nElems;
+			bool		found = true;
 
+			errno = 0;
+			idx = strtoint(c, &badp, 10);
+			if (badp == c || *badp != '\0' || errno != 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+						 errmsg("path element at position %d is not an integer: \"%s\"",
+								level + 1, c)));
+
+			if (idx < 0)
+			{
+				if (pg_abs_s32(idx) > nelems)
+				{
+					/*
+					 * If asked to keep elements position consistent, it's not allowed
+					 * to prepend the array.
+					 */
+					if (op_type & JB_PATH_CONSISTENT_POSITION)
+						ereport(ERROR,
+								(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+								 errmsg("path element at position %d is out of range: %d",
+										level + 1, idx)));
+					else
+					{
+						found = false;
+						idx = 0;
+					}
+				}
+				else
+					idx = nelems + idx;
+			}
+
+			/*
+			 * Filling the gaps means there are no limits on the positive index are
+			 * imposed, we can set any element. Otherwise limit the index by nelems.
+			 */
+			if (!(op_type & JB_PATH_FILL_GAPS))
+			{
+				if (idx > 0 && idx > nelems)
+				{
+					found = false;
+					idx = nelems;
+				}
+			}
+
+			if (level == path_len - 1)
+			{
+				if (op_type & JB_PATH_DELETE)
+				{
+					--val->val.array.nElems;
+					for (int j = idx; j < val->val.array.nElems; j++)
+						val->val.array.elems[j] = val->val.array.elems[j + 1];
+				}
+				else if (op_type & (JB_PATH_INSERT_BEFORE | JB_PATH_INSERT_AFTER) ||
+						 (op_type & JB_PATH_CREATE && !found))
+				{
+					MemoryContext oldcxt;
+					JsonbValue *newelems = val->val.array.elems;
+					idx += op_type & JB_PATH_INSERT_AFTER && found ? 1 : 0;
+
+					if (val->val.array.nElems >= JSONB_MAX_ELEMS)
+						ereport(ERROR,
+								(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+								 errmsg("number of jsonb array elements exceeds the maximum allowed (%zu)",
+										JSONB_MAX_ELEMS)));
+
+					oldcxt = MemoryContextSwitchTo(ejbh->hdr.eoh_context);
+
+					newelems = (JsonbValue *) repalloc(newelems, sizeof(JsonbValue) * ++val->val.array.nElems);
+
+					for (int j = val->val.array.nElems - 1; j > idx; j--)
+						newelems[j] = newelems[j - 1];
+
+					newelems[idx] = newval->val.array.nElems == 1 &&
+									newval->val.array.elems[0].type != jbvArray ?
+													 newval->val.array.elems[0] :
+													 *newval;
+
+					val->val.array.elems = newelems;
+					MemoryContextSwitchTo(oldcxt);
+				}
+				else if (op_type & (JB_PATH_REPLACE | JB_PATH_CREATE) && found)
+					val->val.array.elems[idx] = newval->val.array.nElems == 1 &&
+											    newval->val.array.elems[0].type != jbvArray ?
+												  				 newval->val.array.elems[0] :
+												  				 *newval;
+			}
+			else /* Continue traversing down the existing path */
+				val = &val->val.array.elems[idx];
 		}
-		else;
+		else
+			elog(ERROR, "unrecognized extended jsonb type");
 	}
 
 	return create_nested_expanded_jsonb(ejbh->value, ejbh->hdr.eoh_context);
