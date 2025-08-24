@@ -5051,7 +5051,12 @@ jsonb_set_lax(PG_FUNCTION_ARGS)
 	}
 	else if (strcmp(handle_val, "return_target") == 0)
 	{
-		Jsonb	   *in = PG_GETARG_JSONB_P(0);
+		Jsonb	   *in;
+
+		if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+			return PG_GETARG_DATUM(0);
+		else
+			in = PG_GETARG_JSONB_P(0);
 
 		PG_RETURN_JSONB_P(in);
 	}
