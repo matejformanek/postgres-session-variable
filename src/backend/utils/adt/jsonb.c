@@ -64,6 +64,8 @@ static void add_jsonb(Datum val, bool is_null, JsonbInState *result,
 					  Oid val_type, bool key_scalar);
 static JsonbParseState *clone_parse_state(JsonbParseState *state);
 static char *JsonbToCStringWorker(StringInfo out, JsonbContainer *in, int estimated_len, bool indent);
+static char *JsonbValueToCStringWorker(StringInfo out, JsonbValue *in, int estimated_len,
+									   int level, bool indent);
 static void add_indent(StringInfo out, bool indent, int level);
 
 /*
@@ -107,8 +109,23 @@ jsonb_recv(PG_FUNCTION_ARGS)
 Datum
 jsonb_out(PG_FUNCTION_ARGS)
 {
-	Jsonb	   *jb = PG_GETARG_JSONB_P(0);
+	Jsonb	   *jb;
 	char	   *out;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(PG_GETARG_POINTER(0)))
+	{
+		ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) DatumGetEOHP(PG_GETARG_DATUM(0));
+
+		if (ejbh->is_expanded)
+		{
+			out = JsonbValueToCString(NULL, ejbh->value, ejbh->flat_size);
+			PG_RETURN_CSTRING(out);
+		}
+		else
+			jb = ejbh->fvalue;
+	}
+	else
+		jb = PG_GETARG_JSONB_P(0);
 
 	out = JsonbToCString(NULL, &jb->root, VARSIZE(jb));
 
@@ -484,6 +501,13 @@ JsonbToCStringIndent(StringInfo out, JsonbContainer *in, int estimated_len)
 	return JsonbToCStringWorker(out, in, estimated_len, true);
 }
 
+char *
+JsonbValueToCString(StringInfo out, JsonbValue *in, int estimated_len)
+{
+	return JsonbValueToCStringWorker(out, in, estimated_len, 0, false);
+}
+
+
 /*
  * common worker for above two functions
  */
@@ -609,6 +633,68 @@ JsonbToCStringWorker(StringInfo out, JsonbContainer *in, int estimated_len, bool
 	Assert(level == 0);
 
 	return out->data;
+}
+
+static char *
+JsonbValueToCStringWorker(StringInfo out, JsonbValue *in, int estimated_len, int level, bool indent)
+{
+	/* If we are indenting, don't add a space after a comma */
+	int			ispaces = indent ? 1 : 2;
+
+	check_stack_depth();
+
+	if (out == NULL)
+	{
+		out = makeStringInfo();
+		enlargeStringInfo(out, (estimated_len >= 0) ? estimated_len : 64);
+	}
+
+	switch (in->type)
+	{
+		case jbvObject:
+			appendStringInfoCharMacro(out, '{');
+
+			for (int pair_idx = 0; pair_idx < in->val.object.nPairs; pair_idx++)
+			{
+				if (pair_idx)
+					appendBinaryStringInfo(out, ", ", ispaces);
+
+				jsonb_put_escaped_value(out, &in->val.object.pairs[pair_idx].key);
+				appendBinaryStringInfo(out, ": ", 2);
+
+				(void) JsonbValueToCStringWorker(out, &in->val.object.pairs[pair_idx].value,
+												 0, level + 1, indent);
+			}
+
+			appendStringInfoCharMacro(out, '}');
+			break;
+		case jbvArray:
+			if (!in->val.array.rawScalar)
+				appendStringInfoCharMacro(out, '[');
+
+			for (int elem_idx = 0; elem_idx < in->val.array.nElems; elem_idx++)
+			{
+				if (elem_idx)
+					appendBinaryStringInfo(out, ", ", ispaces);
+
+				(void) JsonbValueToCStringWorker(out, &in->val.array.elems[elem_idx],
+												 0, level + 1, indent);
+			}
+
+			if (!in->val.array.rawScalar)
+				appendStringInfoCharMacro(out, ']');
+			break;
+		case jbvNull:
+		case jbvString:
+		case jbvNumeric:
+		case jbvBool:
+			jsonb_put_escaped_value(out, in);
+			break;
+		default:
+			elog(ERROR, "unknown jsonb value type");
+	}
+
+	return !level ? out->data : NULL;
 }
 
 static void
