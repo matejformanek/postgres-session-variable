@@ -479,7 +479,7 @@ extern Datum jsonb_build_array_worker(int nargs, const Datum *args, const bool *
 
 /* jsonb_expanded.c support functions */
 extern Datum expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext);
-extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh);
+extern void deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh, bool is_read_only);
 extern Datum create_nested_expanded_jsonb(JsonbValue *val, MemoryContext parentcontext);
 extern JsonbValue *JsonbToDecomposedJsonbValue(Jsonb *jsonb, MemoryContext parentcontext);
 extern char *JsonbValueToCString(StringInfo out, JsonbValue *in, int estimated_len);

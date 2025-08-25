@@ -37,11 +37,13 @@ static Size
 EA_get_flat_size(ExpandedObjectHeader *eohptr)
 {
     ExpandedJsonbHeader *ejbh = (ExpandedJsonbHeader *) eohptr;
-    /* If we remember flat_size then no deconstruction was done,
+    /* If we remember flat_size then no alteration was done,
      * The complexity to get the size is similar to converting it to flat value.
      * Rather than do it twice, convert it here.
      */
-    Jsonb *jsonb = ejbh->is_expanded == true ? JsonbValueToJsonb(ejbh->value) : ejbh->fvalue;
+    Jsonb *jsonb = ejbh->is_expanded == true && !ejbh->flat_size ?
+                                  JsonbValueToJsonb(ejbh->value) :
+                                  ejbh->fvalue;
 
     ejbh->flat_size = VARSIZE(jsonb);
     ejbh->fvalue = jsonb;
@@ -117,8 +119,15 @@ expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext)
  * if we didn't do so previously
  */
 void
-deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh)
+deconstruct_expanded_jsonb(ExpandedJsonbHeader *ejbh, bool is_read_only)
 {
+    /*
+     * If read only we can continue to remember the original fvalue.
+     * This will save us possible unnecessary flattening
+     */
+    if (!is_read_only)
+        ejbh->flat_size = 0;
+
     if (ejbh->is_expanded)
         return;
 

@@ -1714,7 +1714,7 @@ jsonb_object_field_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal,
 	 * Deconstruct jsonb if we haven't already.  Note that we apply this even
 	 * if the input is nominally read-only: it should be safe enough.
 	 */
-	deconstruct_expanded_jsonb(ejbh);
+	deconstruct_expanded_jsonb(ejbh, true);
 
 	if (ejbh->value->type != jbvObject)
 	{
@@ -1746,7 +1746,7 @@ jsonb_array_element_expanded(ExpandedJsonbHeader *ejbh, int element,
 	 * Deconstruct jsonb if we haven't already.  Note that we apply this even
 	 * if the input is nominally read-only: it should be safe enough.
 	 */
-	deconstruct_expanded_jsonb(ejbh);
+	deconstruct_expanded_jsonb(ejbh, true);
 
 	if (ejbh->value->type != jbvArray)
 	{
@@ -5411,7 +5411,7 @@ setPathExtended(ExpandedJsonbHeader *ejbh, Datum *path_elems,
 {
 	JsonbValue *val;
 
-	deconstruct_expanded_jsonb(ejbh);
+	deconstruct_expanded_jsonb(ejbh, false);
 
 	val = ejbh->value;
 
