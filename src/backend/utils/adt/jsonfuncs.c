@@ -1727,7 +1727,8 @@ jsonb_object_field_expanded(ExpandedJsonbHeader *ejbh, const char *keyVal,
 
 	for (int i = 0; i < nPairs; i++)
 		if (varstr_cmp(obj[i].key.val.string.val, obj[i].key.val.string.len,
-					keyVal, keyLen, DEFAULT_COLLATION_OID) == 0)
+					keyVal, keyLen, DEFAULT_COLLATION_OID) == 0 &&
+					obj[i].value.type != jbvNull)
 			return istext ? PointerGetDatum(JsonbValueAsText(&obj[i].value))
 						  : create_nested_expanded_jsonb(&obj[i].value, CurrentMemoryContext);
 

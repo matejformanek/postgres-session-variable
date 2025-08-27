@@ -399,14 +399,10 @@ typedef struct ExpandedJsonbHeader
 
 	/*
 	 * fvalue points to the flat representation if it is valid, else it is
-	 * NULL.  If we have or ever had a flat representation then
-	 * fstartptr/fendptr point to the start and end+1 of its data area; this
-	 * is so that we can tell which Datum pointers point into the flat
-	 * representation rather than being pointers to separately palloc'd data.
+	 * NULL. If flat_size is not 0 then the value has not been changed
+	 * in this scenario we can still use the original fvalue.
 	 */
 	Jsonb	   *fvalue;
-	char	   *fstartptr;		/* start of its data area */
-	char	   *fendptr;		/* end+1 of its data area */
 } ExpandedJsonbHeader;
 
 /* Convenience macros */

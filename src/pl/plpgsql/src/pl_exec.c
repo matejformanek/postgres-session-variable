@@ -8605,6 +8605,14 @@ assign_simple_var(PLpgSQL_execstate *estate, PLpgSQL_var *var,
 		   var->dtype == PLPGSQL_DTYPE_PROMISE);
 
 	/*
+	 * When traversing Jsonb tree, we have to create a new Expanded object for each
+	 * traversal -> This means we get a different pointer/ExpandedObject
+	 * But still it is a part of the original structure so we can NOT just free it
+	 */
+	if (var->datatype->typoid == JSONBOID)
+		var->freeval = false;
+
+	/*
 	 * In non-atomic contexts, we do not want to store TOAST pointers in
 	 * variables, because such pointers might become stale after a commit.
 	 * Forcibly detoast in such cases.  We don't want to detoast (flatten)

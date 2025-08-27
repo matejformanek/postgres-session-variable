@@ -107,8 +107,6 @@ expand_jsonb(Datum jsonbdatum, MemoryContext parentcontext)
      * remember we have a flat representation
      */
     ejbh->fvalue = jsonb;
-    ejbh->fstartptr = (char *) jsonb;
-    ejbh->fendptr = ((char *) jsonb) + VARSIZE(jsonb);
 
     /* return a R/W pointer to the expanded jsonb */
     return EOHPGetRWDatum(&ejbh->hdr);
