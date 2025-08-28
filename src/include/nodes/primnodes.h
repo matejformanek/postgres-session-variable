@@ -706,16 +706,6 @@ typedef struct SubscriptingRef
 	Expr	   *refassgnexpr;
 } SubscriptingRef;
 
-typedef struct ArrowRef
-{
-	Expr		xpr;
-
-	/* Base expression */
-	Expr		*expr;
-	/* Path of arrows to the desired key */
-	List		*arrow_ind;
-} ArrowRef;
-
 /*
  * CoercionContext - distinguishes the allowed set of type casts
  *

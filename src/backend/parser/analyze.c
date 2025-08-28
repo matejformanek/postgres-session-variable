@@ -51,6 +51,7 @@
 #include "utils/backend_status.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
+#include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
 
@@ -2842,27 +2843,96 @@ transformPLAssignStmt(ParseState *pstate, PLAssignStmt *stmt)
 										   indirection,
 										   list_head(indirection),
 										   (Node *) tle->expr,
-										   arrow_ind != NIL ? COERCION_NONE : COERCION_PLPGSQL,
+										   COERCION_PLPGSQL,
 										   exprLocation(target));
 	}
 
+	/*
+	 * Hack: Rewrite the assignment expression from
+	 *		js_var -> 'key' -> 0 := expr
+	 * To:  js_var := jsonb_set(js_var, '{key, 0}', expr, true)
+	 */
 	if (arrow_ind != NIL)
 	{
-		/* Create arrow expression */
-		ArrowRef *arrow = makeNode(ArrowRef);
-		List     *const_list = NIL;
 		ListCell *lc;
+		Node	 *orig_expr = (Node *) tle->expr;
+		Oid         jsonb_set_oid;
+		List       *args;
+		ArrayType  *path;
+		Const  *path_const;
+		int16 elmlen;
+		bool elmbyval;
+		char elmalign;
+		int nelems = list_length(arrow_ind);
+		Datum *datums = palloc(sizeof(Datum) * nelems);
+		int i = 0;
 
 		foreach(lc, arrow_ind)
 		{
-			Node *a_const = lfirst(lc);
-			Node *transformed = transformExpr(pstate, a_const, EXPR_KIND_UPDATE_TARGET);
-			const_list = lappend(const_list, transformed);
+			A_Const *aconst = lfirst(lc);
+			Const   *c = (Const *) transformExpr(pstate, (Node *) aconst, EXPR_KIND_UPDATE_TARGET);
+
+			if (c->consttype != UNKNOWNOID)
+			{
+				Oid outputFunction;
+				bool typeIsVarlen;
+				char *cstringValue;
+
+				getTypeOutputInfo(c->consttype, &outputFunction, &typeIsVarlen);
+
+				cstringValue = OidOutputFunctionCall(outputFunction, c->constvalue);
+
+				c->consttype = UNKNOWNOID;
+				c->constvalue = CStringGetDatum(cstringValue);
+				c->constlen = -2;
+				c->constbyval = false;
+			}
+
+			c = (Const *) coerce_to_target_type(pstate,
+									  (Node *) c,
+									  c->consttype,
+									  TEXTOID,
+									  -1,
+									  COERCION_EXPLICIT,
+									  COERCE_EXPLICIT_CAST,
+									  -1);
+
+			datums[i++] = c->constvalue;
 		}
 
-		arrow->expr = tle->expr;
-		arrow->arrow_ind = const_list;
-		tle->expr = (Expr *) arrow;
+		get_typlenbyvalalign(TEXTOID, &elmlen, &elmbyval, &elmalign);
+
+		path = construct_array(datums, nelems, TEXTOID, elmlen, elmbyval, elmalign);
+
+		path_const = makeConst(TEXTARRAYOID, -1, InvalidOid, -1,
+					  PointerGetDatum(path), false, false);
+
+		/* Najdi OID funkce jsonb_set(jsonb, text[], jsonb, boolean) */
+		jsonb_set_oid = LookupFuncName(list_make1(makeString("jsonb_set")), 4,
+									   (Oid[]){JSONBOID, TEXTARRAYOID, JSONBOID, BOOLOID},
+									   false);
+
+		if (!OidIsValid(jsonb_set_oid))
+			elog(ERROR, "could not find function jsonb_set(jsonb, text[], jsonb, boolean)");
+
+		args = list_make4(
+			target,
+			path_const,
+			coerce_to_target_type(pstate,
+								  orig_expr, type_id,
+								  targettype, targettypmod,
+								  COERCION_PLPGSQL,
+								  COERCE_IMPLICIT_CAST,
+								  -1),
+			makeBoolConst(true, false)
+		);
+
+		tle->expr = (Expr *) makeFuncExpr(jsonb_set_oid,
+							JSONBOID,
+							args,
+							InvalidOid,
+							InvalidOid,
+							COERCE_EXPLICIT_CALL);
 	}
 	else if (targettype != type_id && !indirection &&
 		 (targettype == RECORDOID || ISCOMPLEX(targettype)) &&
